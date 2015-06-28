@@ -1,5 +1,5 @@
 This is the firmware for an EggBot-style SphereBot.
-The firmware directly interprets GCode send over the serial port.
+The firmware directly interprets GCode sent over the serial port.
 
 There will be more information on the SphereBot at http://pleasantsoftware.com/developer/3d (in the near future...)
 
@@ -18,6 +18,20 @@ This version has been modified to work with the Adafruit motor shield by Jin Cho
 * Adafruit Motor Shield: https://github.com/adafruit/Adafruit-Motor-Shield-library
 
 You *must* use this version of AccelStepper, as modifications have been made to allow multiple steppers to coordinate properly.
+
+To use:
+
+Plug in the stepper motors and servo to the motor shield. Use M1/M2 for the pen motor, and M3/M4 for the rotation motor. M1 and M3 should have the same colored pairs of wires, as should M2 and M4, in order to have everything turn in the correct directions. The servo should go into the Servo 2 port with the brown wire towards the edge of the board. If you do things differently, edit PEN_AXIS_PORT, ROTATION_AXIS_PORT, and SERVO_PIN appropriately.
+
+Define PEN_UP_POSITION and PEN_DOWN_POSITION appropriately. The servo gets clamped to these values, so to determine the correct values, set them to 0 and 180, then without the pen arm spring connected, send it values using "M300 Sxxx" to figure out what you should be using. These are safety values, you can set them to 0 and 180, and rely on your G-code to move them appropriately.
+
+Set minPenAxisStep and maxPenAxisStep. -30 and 30 should be fine; Eggbot patterns only use equivalent X values between -25 and 25.
+
+The DEFAULT_ZOOM_FACTOR is set to 0.0625 in order to be able to make use of g-code intended for the Eggbot without modification. Eggbot appears to use 3200x800 as the drawing field, whereas the native units are full steps. With 200 steps/revolution motors, that would give us a 1/16 zoom factor.
+
+I suggest using the [InkScape Unicorn Plugin](https://github.com/martymcguire/inkscape-unicorn) to generate the g-code. Because the usable movement rates are so low (recommended 10-20 steps/s), you will want to edit unicorn.inx and modify the minimum value for the "xy-feedrate" parameter to 1.0 from 100.0. Once you have your g-code generated, you will want to remove the "M300 S255" line at the end, as I have not implemented turning off the servo and that will just drive the pen down.
+
+A simple g-code sender script is available in Utils.
 
 
 Copyright 2011 by Eberhard Rensch <http://pleasantsoftware.com/developer/3d>
