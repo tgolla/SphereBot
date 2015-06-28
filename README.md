@@ -6,11 +6,12 @@ There will be more information on the SphereBot at http://pleasantsoftware.com/d
 
 This version has been modified to work with the Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>. Some changes have been made:
 
-* The units are changed from nominal mm to full steps. If you are using a 200 steps/revolution stepper, G1 Y200 will rotate the rotation axis one full turn. This makes adjusting for object diameter unnecessary.
+* The units are changed from nominal mm to full steps. If you are using a 200 steps/revolution stepper, G1 Y200 will rotate the rotation axis one full turn. This makes adjusting for object diameter unnecessary. (However, note below that the default zoom factor has been set to 1/16 for compatibility with Eggbot files. This affects X/Y coordinates but not feed rates.)
 * Microstepping is implemented by multiplying all steps and feed rates by MICROSTEPS (usually 16). This makes for very smooth motion, but reduces maximum movement rates. If a too-rapid movement is attempted, the other stepper will be starved and move jerkily.
-* The axes convention is swapped, so that the X axis is the rotation axis and the Y axis the pen axis. This was done to make it easier to adopt patterns using the Eggbot templates, which are 3200 px wide. Adjust zoom by dividing your stepper's steps/revolution by 3200 (e.g., 1/16 for a 200 steps/revolution stepper).
+* The axes convention is swapped, so that the X axis is the rotation axis and the Y axis the pen axis. This was done to make it easier to adopt patterns using the Eggbot templates, which are 3200 px wide.
 * Pen axis values are clamped to minPenAxisStep and maxPenAxisStep variables, to prevent damage from overrotation. Change these values as appropriate to your setup.
-* Servo values are likewise clamped to PEN_UP_POSITION and PEN_DOWN_POSITION. These should be adjusted as necessary for your servo.
+* Servo values are likewise clamped to PEN_UP_POSITION and PEN_DOWN_POSITION. These should be adjusted as necessary for your setup.
+* Some g-code seems to use "M300 S255" to indicate that the servo be disabled. This has not been implemented, as I do not believe it is possible without being able to control power to the servo. Remove any such line as it will drive the pen down instead of disabling it.
 
 **IMPORTANT**: This sketch needs the following non-standard libraries (install them in the Arduino library directory):
 
