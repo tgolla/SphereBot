@@ -24,7 +24,7 @@ To use:
 
 Plug in the stepper motors and servo to the motor shield. Use M1/M2 for the pen motor, and M3/M4 for the rotation motor. M1 and M3 should have the same colored pairs of wires, as should M2 and M4, in order to have everything turn in the correct directions. The servo should go into the Servo 2 port with the brown wire towards the edge of the board. If you do things differently, edit PEN_AXIS_PORT, ROTATION_AXIS_PORT, and SERVO_PIN appropriately.
 
-Define PEN_UP_POSITION and PEN_DOWN_POSITION appropriately. The servo gets clamped to these values, so to determine the correct values, set them to 0 and 180, then without the pen arm spring connected, send it values using "M300 Sxxx" to figure out what you should be using. These are safety values, you can set them to 0 and 180, and rely on your G-code to move them appropriately.
+Define PEN_UP_POSITION and PEN_DOWN_POSITION appropriately. The servo gets clamped to these values, so to determine the correct values, set them to 0 and 180, then without the pen arm spring connected, send it values using "M300 Sxxx" to figure out what you should be using. These are safety values, you can set them to 0 and 180, and rely on your G-code to move them appropriately. Note that the servo will be driven to PEN_UP_POSITION on startup, however.
 
 Set minPenAxisStep and maxPenAxisStep. -30 and 30 should be fine; Eggbot patterns only use equivalent X values between -25 and 25.
 
