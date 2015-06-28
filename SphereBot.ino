@@ -17,60 +17,85 @@
  * Part of this code is based on/inspired by the Helium Frog Delta Robot Firmware
  * by Martin Price <http://www.HeliumFrog.com>
  *
+ * Updated to run on Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>.
+ *
  * !!!!!!!!
  * This sketch needs the following non-standard libraries (install them in the Arduino library directory):
- * SoftwareServo: http://www.arduino.cc/playground/ComponentLib/Servo
- * TimerOne: http://www.arduino.cc/playground/Code/Timer1
+
+ * AccelStepper: https://github.com/jinschoi/AccelStepper
+ * Adafruit Motor Shield: https://github.com/adafruit/Adafruit-Motor-Shield-library
  * !!!!!!!!
  */
 
-#include <TimerOne.h>
-#include <SoftwareServo.h>
-#include "StepperModel.h"
+/* Adafruit Motor Shield libraries */
+#include <Wire.h>
+#include <Adafruit_MotorShield.h>
+#include "utility/Adafruit_PWMServoDriver.h"
 
+/* AccelStepper */
+#include <AccelStepper.h>
 
-#define TIMER_DELAY 64
+/* Servo library */
+#include <Servo.h>
+
 
 /*
  * PINS
  */
- 
-#define XAXIS_DIR_PIN 7
-#define XAXIS_STEP_PIN 8
-#define XAXIS_ENABLE_PIN 6
-#define XAXIS_ENDSTOP_PIN 3
 
-#define YAXIS_DIR_PIN 10
-#define YAXIS_STEP_PIN 11
-#define YAXIS_ENABLE_PIN 9
-#define YAXIS_ENDSTOP_PIN -1 // <0 0> No Endstop!
+#define PEN_AXIS_PORT 1
+#define ROTATION_AXIS_PORT 2
 
-#define SERVO_PIN 2
+#define SERVO_PIN 9
 
 /*
  * Other Configuration
  */
 
-#define DEFAULT_PEN_UP_POSITION 50
-#define XAXIS_MIN_STEPCOUNT -467
-#define XAXIS_MAX_STEPCOUNT 467
-#define DEFAULT_ZOOM_FACTOR 1. // With a Zoom-Faktor of .65, I can print gcode for Makerbot Unicorn without changes. 
-                               // The zoom factor can be also manipulated by the propretiary code M402
+/* Pen servo gets clamped to these values. */
+#define PEN_UP_POSITION 115
+#define PEN_DOWN_POSITION 125
+
+/* X axis gets clamped to these values to prevent inadvertent damage. */
+int minPenAxisStep = -30;
+int maxPenAxisStep = 30;
+
+/* Suitable for Eggbot template and 200 steps/rev steppers */
+#define DEFAULT_ZOOM_FACTOR 0.0625
+
+#define STEP_MODE MICROSTEP
 
 
 /* --------- */
 
-StepperModel xAxisStepper(XAXIS_DIR_PIN, XAXIS_STEP_PIN, XAXIS_ENABLE_PIN, XAXIS_ENDSTOP_PIN,
-        XAXIS_MIN_STEPCOUNT, XAXIS_MAX_STEPCOUNT, 200.0, 16);
-StepperModel rotationStepper(YAXIS_DIR_PIN, YAXIS_STEP_PIN, YAXIS_ENABLE_PIN, YAXIS_ENDSTOP_PIN,
-        0, 0, 200.0, 16);
+/* Set up steppers */
+Adafruit_MotorShield MS = Adafruit_MotorShield();
+Adafruit_StepperMotor *xStepper = MS.getStepper(200, ROTATION_AXIS_PORT);
+Adafruit_StepperMotor *yStepper = MS.getStepper(200, PEN_AXIS_PORT);
 
-SoftwareServo servo;
-boolean servoEnabled=true;
+void forwardStepRotation() {
+  xStepper->onestep(FORWARD, STEP_MODE);
+}
 
-long intervals=0;
-volatile long intervals_remaining=0;
-volatile boolean isRunning=false;
+void backwardStepRotation() {
+  xStepper->onestep(BACKWARD, STEP_MODE);
+}
+
+void forwardStepPenAxis() {
+  yStepper->onestep(FORWARD, STEP_MODE);
+}
+
+void backwardStepPenAxis() {
+  yStepper->onestep(BACKWARD, STEP_MODE);
+}
+
+
+AccelStepper penAxisStepper(forwardStepPenAxis, backwardStepPenAxis);
+AccelStepper rotationStepper(forwardStepRotation, backwardStepRotation);
+  
+Servo servo;
+
+boolean isRunning=false;
 
 // comm variables
 const int MAX_CMD_SIZE = 256;
@@ -82,126 +107,87 @@ boolean comment_mode = false;
 // end comm variables
 
 // GCode States
-double currentOffsetX = 0.;
-double currentOffsetY = 0.;
 boolean absoluteMode = true;
-double feedrate = 2000.; // mm/minute
+double feedrate = 10.0; // full steps/s
 double zoom = DEFAULT_ZOOM_FACTOR;
 
-const double maxFeedrate = 6000.;
+// full steps/s
+#define MAX_FEEDRATE 20.0
+
 // ------
+
+/* Microstepping requires that we call onestep() MICROSTEPS times for
+   every full step.  We will handle this by dealing with all
+   coordinates and feed rates as full steps and multiplying them all
+   up by the appropriate factor whenever we interact with the stepper
+   library.
+
+   INTERLEAVE mode seems to act like 2x microstepping. */
+inline double convertSteps(double fullSteps)
+{
+  switch (STEP_MODE) {
+  case INTERLEAVE:
+    return fullSteps * 2;
+  case MICROSTEP:
+    return fullSteps * MICROSTEPS;
+  default:
+    return fullSteps;
+  }
+}
+  
 
 void setup()
 {
     Serial.begin(115200);
-
     clear_buffer();
 
+    MS.begin();
+    Serial.println("Ready");
+
+    double maxFeedrate = convertSteps(MAX_FEEDRATE);
+
+    penAxisStepper.setMaxSpeed(maxFeedrate);
+    rotationStepper.setMaxSpeed(maxFeedrate);
+    
     servo.attach(SERVO_PIN);
-    servo.write(DEFAULT_PEN_UP_POSITION);
-    
-    if(servoEnabled)
-    {
-      for(int i=0;i<100;i++)
-      {
-          SoftwareServo::refresh();
-          delay(4);
-      }
-    }
-    
-    //--- Activate the PWM timer
-    Timer1.initialize(TIMER_DELAY); // Timer for updating pwm pins
-    Timer1.attachInterrupt(doInterrupt);
-  
-#ifdef AUTO_HOMING
-    xAxisStepper.autoHoming();
-    xAxisStepper.setTargetPosition(0.);
-    commitSteppers(maxFeedrate);
-    delay(2000);
-    xAxisStepper.enableStepper(false);
-#endif
+    servo.write(PEN_UP_POSITION);
+    delay(100);
+
+    minPenAxisStep = convertSteps(minPenAxisStep);
+    maxPenAxisStep = convertSteps(maxPenAxisStep);
 }
 
 void loop() // input loop, looks for manual input and then checks to see if and serial commands are coming in
 {
   get_command(); // check for Gcodes
-  if(servoEnabled)
-    SoftwareServo::refresh();
-}
-
-//--- Interrupt-Routine: Move the steppers
-void doInterrupt()
-{
-  if(isRunning)
-  {
-      if (intervals_remaining-- == 0)
-	 isRunning = false;
-      else
-      {
-          rotationStepper.doStep(intervals);
-          xAxisStepper.doStep(intervals);
-      }
+  if (isRunning) {
+    if (penAxisStepper.distanceToGo() == 0 && rotationStepper.distanceToGo() == 0) {
+      isRunning = false;
+    } else {
+      penAxisStepper.runSpeedToPosition();
+      rotationStepper.runSpeedToPosition();
+    }
   }
 }
 
-void commitSteppers(double speedrate)
+/* All arguments must be in converted partial step units:
+   double for INTERLEAVE, or multiplied by MICROSTEPS for MICROSTEP mode. */
+void commitSteppers(long x, long y, double speedrate)
 {
-  long deltaStepsX = xAxisStepper.delta;
-  if(deltaStepsX != 0L)
-  {
-    xAxisStepper.enableStepper(true);
-  }
+  long deltaStepsX = x - rotationStepper.currentPosition();
+  long deltaStepsY = y - penAxisStepper.currentPosition();
 
-  long deltaStepsY = rotationStepper.delta;
-  if(deltaStepsY != 0L)
-  {
-    rotationStepper.enableStepper(true);
-  }
-  long masterSteps = (deltaStepsX>deltaStepsY)?deltaStepsX:deltaStepsY;
-
-  double deltaDistanceX = xAxisStepper.targetPosition-xAxisStepper.getCurrentPosition();
-  double deltaDistanceY = rotationStepper.targetPosition-rotationStepper.getCurrentPosition();
-  		
   // how long is our line length?
-  double distance = sqrt(deltaDistanceX*deltaDistanceX+deltaDistanceY*deltaDistanceY);
-		  	  
-  // compute number of intervals for this move
-  double sub1 = (60000.* distance / speedrate);
-  double sub2 = sub1 * 1000.;
-  intervals = (long)sub2/TIMER_DELAY;
+  double distance = sqrt(deltaStepsX*deltaStepsX+deltaStepsY*deltaStepsY);
 
-  intervals_remaining = intervals;
-  const long negative_half_interval = -intervals / 2;
-  
-  rotationStepper.counter = negative_half_interval;
-  xAxisStepper.counter = negative_half_interval;
+  // go there.
+  rotationStepper.moveTo(x);
+  penAxisStepper.moveTo(y);
 
-//  Serial.print("Speedrate:");
-//  Serial.print(speedrate, 6);
-//  Serial.print(" dX:");
-//  Serial.print(deltaStepsX);
-//  Serial.print(" dY:");
-//  Serial.print(deltaStepsY);
-//  Serial.print(" masterSteps:");
-//  Serial.print(masterSteps);
-//  Serial.print(" dDistX:");
-//  Serial.print(deltaDistanceX);
-//  Serial.print(" dDistY:");	
-//  Serial.print(deltaDistanceY);
-//  Serial.print(" distance:");
-//  Serial.print(distance);
-//  Serial.print(" sub1:");
-//  Serial.print(sub1, 6);
-//  Serial.print(" sub2:");
-//  Serial.print(sub2, 6);
-//  Serial.print(" intervals:");
-//  Serial.print(intervals);
-//  Serial.print(" negative_half_interval:");
-//  Serial.println(negative_half_interval);
-//  Serial.print("Y currentStepCount:");
-//  Serial.print(rotationStepper.currentStepcount);
-//  Serial.print(" targetStepCount:");
-//  Serial.println(rotationStepper.targetStepcount);
+  // compute speed for this move. Must call setSpeed after moveTo for constant speed
+  // moves (can't use acceleration because the axes won't coordinate).
+  rotationStepper.setSpeed(deltaStepsX * speedrate / distance);
+  penAxisStepper.setSpeed(deltaStepsY * speedrate / distance);
 
   isRunning=true;
 }
@@ -257,14 +243,19 @@ boolean getValue(char key, char command[], double* value)
   return false;
 }
 
+inline double clamp(double x, double a, double b)
+{
+  return x < a ? a : (x > b ? b : x);
+}
+
 void process_commands(char command[], int command_length) // deals with standardized input from serial connection
 {
   if (command_length>0 && command[0] == 'G') // G code
   {
     int codenum = (int)strtod(&command[1], NULL);
     
-    double tempX = xAxisStepper.getCurrentPosition();
-    double tempY = rotationStepper.getCurrentPosition();
+    double tempX = rotationStepper.currentPosition();
+    double tempY = penAxisStepper.currentPosition();
     
     double xVal;
     boolean hasXVal = getValue('X', command, &xVal);
@@ -286,43 +277,38 @@ void process_commands(char command[], int command_length) // deals with standard
     
     getValue('F', command, &feedrate);
 
-    xVal+=currentOffsetX;
-    yVal+=currentOffsetY;
-    
     if(absoluteMode)
     {
       if(hasXVal)
-        tempX=xVal;
+        tempX=convertSteps(xVal);
       if(hasYVal)
-        tempY=yVal;
+        tempY=convertSteps(yVal);
     }
     else
     {
       if(hasXVal)
-        tempX+=xVal;
+        tempX+=convertSteps(xVal);
       if(hasYVal)
-        tempY+=yVal;
+        tempY+=convertSteps(yVal);
     }
-    
+
+    tempY = clamp(tempY, minPenAxisStep, maxPenAxisStep);
+
     switch(codenum)
     {
       case 0: // G0, Rapid positioning
-        xAxisStepper.setTargetPosition(tempX);
-        rotationStepper.setTargetPosition(tempY);
-        commitSteppers(maxFeedrate);
+        commitSteppers(tempX, tempY, convertSteps(MAX_FEEDRATE));
         break;
       case 1: // G1, linear interpolation at specified speed
-        xAxisStepper.setTargetPosition(tempX);
-        rotationStepper.setTargetPosition(tempY);
-        commitSteppers(feedrate);
+        commitSteppers(tempX, tempY, convertSteps(feedrate));
         break;
       case 2: // G2, Clockwise arc
       case 3: // G3, Counterclockwise arc
         if(hasIVal && hasJVal)
         {
-            double centerX=xAxisStepper.getCurrentPosition()+iVal;
-            double centerY=rotationStepper.getCurrentPosition()+jVal;
-            drawArc(centerX, centerY, tempX, tempY, (codenum==2));
+	  double centerX=rotationStepper.currentPosition()+convertSteps(iVal);
+	  double centerY=penAxisStepper.currentPosition()+convertSteps(jVal);
+	  drawArc(centerX, centerY, tempX, tempY, (codenum==2));
         }
         else if(hasRVal)
         {
@@ -332,13 +318,7 @@ void process_commands(char command[], int command_length) // deals with standard
       case 4: // G4, Delay P ms
         if(hasPVal)
         {
-           unsigned long endDelay = millis()+ (unsigned long)pVal;
-           while(millis()<endDelay)
-           {
-              delay(1);
-              if(servoEnabled)
-                SoftwareServo::refresh();
-           }
+	  delay(pVal);
         }
         break;
       case 90: // G90, Absolute Positioning
@@ -356,50 +336,17 @@ void process_commands(char command[], int command_length) // deals with standard
     switch(codenum)
     {   
       case 18: // Disable Drives
-        xAxisStepper.resetStepper();
-        rotationStepper.resetStepper();
+	xStepper->release();
+	yStepper->release();
         break;
 
       case 300: // Servo Position
         if(getValue('S', command, &value))
         {
-          servoEnabled=true;
-          if(value<0.)
-            value=0.;
-          else if(value>180.)
-          {
-            value=DEFAULT_PEN_UP_POSITION;
-            servo.write((int)value);
-            for(int i=0;i<100;i++)
-            {
-                SoftwareServo::refresh();
-                delay(4);
-            }           
-            servoEnabled=false;
-          }
-          servo.write((int)value);
-        }
-        break;
-        
-      case 400: // Propretary: Reset X-Axis-Stepper settings to new object diameter
-        if(getValue('S', command, &value))
-        {
-          xAxisStepper.resetSteppersForObjectDiameter(value);
-          xAxisStepper.setTargetPosition(0.);
-          commitSteppers(maxFeedrate);
-          delay(2000);
-          xAxisStepper.enableStepper(false);
-        }
-        break;
-        
-      case 401: // Propretary: Reset Y-Axis-Stepper settings to new object diameter
-        if(getValue('S', command, &value))
-        {
-          rotationStepper.resetSteppersForObjectDiameter(value);
-          rotationStepper.setTargetPosition(0.);
-          commitSteppers(maxFeedrate);
-          delay(2000);
-          rotationStepper.enableStepper(false);
+          servo.attach(SERVO_PIN);
+	  value = clamp(value, PEN_UP_POSITION, PEN_DOWN_POSITION); 
+
+	  servo.write((int)value);
         }
         break;
         
@@ -436,8 +383,8 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
   double bY;
 
   // figure out our deltas
-  double currentX = xAxisStepper.getCurrentPosition();
-  double currentY = rotationStepper.getCurrentPosition();
+  double currentX = rotationStepper.currentPosition();
+  double currentY = penAxisStepper.currentPosition();
   aX = currentX - centerX;
   aY = currentY - centerY;
   bX = endpointX - centerX;
@@ -491,16 +438,17 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
     newPointY= centerY + radius	* sin(angleA + angle * ((double) step / steps));
 
     // start the move
-    xAxisStepper.setTargetPosition(newPointX);
-    rotationStepper.setTargetPosition(newPointY);
-    commitSteppers(feedrate);
+    commitSteppers(newPointX, newPointY, convertSteps(feedrate));
     
     while(isRunning)
     {
-      delay(1);
-      if(servoEnabled)
-        SoftwareServo::refresh();
-    };
+      if (penAxisStepper.distanceToGo() == 0 && rotationStepper.distanceToGo() == 0) {
+	isRunning = false;
+      } else {
+	penAxisStepper.runSpeedToPosition();
+	rotationStepper.runSpeedToPosition();
+      }
+    }
   }
 }
 
