@@ -1,39 +1,35 @@
-This is the firmware for an EggBot-style SphereBot.
-The firmware directly interprets GCode sent over the serial port.
+This is a fork of Eberhard Rensch's SphereBot firmware. This version has been modified to work with the Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>. Some changes have been made:
 
-There will be more information on the SphereBot at http://pleasantsoftware.com/developer/3d (in the near future...)
-
-
-This version has been modified to work with the Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>. Some changes have been made:
-
-* The units are changed from nominal mm to full steps. If you are using a 200 steps/revolution stepper, G1 Y200 will rotate the rotation axis one full turn. This makes adjusting for object diameter unnecessary. (However, note below that the default zoom factor has been set to 1/16 for compatibility with Eggbot files. This affects X/Y coordinates but not feed rates.)
-* Microstepping is implemented by multiplying all steps and feed rates internally by MICROSTEPS (usually 16). This makes for very smooth motion, but reduces maximum movement rates. If a too-rapid movement is attempted, the other stepper will be starved and move jerkily. If you want faster travel, you can set STEP_MODE to SINGLE, DOUBLE, or INTERLEAVE.
-* The axes convention is swapped, so that the X axis is the rotation axis and the Y axis the pen axis. This was done to make it easier to adopt patterns using the Eggbot templates, which are 3200 px wide.
-* Pen axis values are clamped to minPenAxisStep and maxPenAxisStep variables, to prevent damage from overrotation. Change these values as appropriate to your setup.
+* The units are changed from nominal mm to microsteps. If you are using a 200 steps/revolution stepper, G1 Y3200 will rotate the rotation axis one full turn (using 16x microstepping). This makes adjusting for object diameter unnecessary.
+* The axes convention is swapped, so that the X axis is the rotation axis and the Y axis the pen axis. This was done to make it easier to adopt patterns using the Eggbot templates, which are 3200 px wide by 800 px tall.
+* Pen axis values are clamped to MIN_PEN_AXIS_STEP and MAX_PEN_AXIS_STEP constants, to prevent damage from overrotation. Change these values as appropriate to your setup.
 * Servo values are likewise clamped to PEN_UP_POSITION and PEN_DOWN_POSITION. These should be adjusted as necessary for your setup.
-* Some g-code seems to use "M300 S255" to indicate that the servo be disabled. This has not been implemented, as I do not believe it is possible without being able to control power to the servo. Remove any such line as it will drive the pen down instead of disabling it.
+* Some g-code seems to use "M300 S255" to indicate that the servo be disabled. This is not possible without being able to control the power lines to the servo once a control signal has been sent. Any value over 180 will move the pen to the pen up position.
+* Stepper control is handled by a class that implements Bresenham's line algorithm and calls to Adafruit_StepperMotor to do the steps. Maximum speed possible is about 265 steps/s, or about 30 degrees/s.
 
-**IMPORTANT**: This sketch needs the following non-standard libraries (install them in the Arduino library directory):
+**IMPORTANT**: This sketch needs the following non-standard library (install them in the Arduino library directory):
 
-* AccelStepper: https://github.com/jinschoi/AccelStepper
 * Adafruit Motor Shield: https://github.com/adafruit/Adafruit-Motor-Shield-library
-
-You *must* use this version of AccelStepper, as modifications have been made to allow multiple steppers to coordinate properly.
 
 To use:
 
 Plug in the stepper motors and servo to the motor shield. Use M1/M2 for the pen motor, and M3/M4 for the rotation motor. M1 and M3 should have the same colored pairs of wires, as should M2 and M4, in order to have everything turn in the correct directions. The servo should go into the Servo 2 port with the brown wire towards the edge of the board. If you do things differently, edit PEN_AXIS_PORT, ROTATION_AXIS_PORT, and SERVO_PIN appropriately.
 
-Define PEN_UP_POSITION and PEN_DOWN_POSITION appropriately. The servo gets clamped to these values, so to determine the correct values, set them to 0 and 180, then without the pen arm spring connected, send it values using "M300 Sxxx" to figure out what you should be using. These are safety values, you can set them to 0 and 180, and rely on your G-code to move them appropriately. Note that the servo will be driven to PEN_UP_POSITION on startup, however.
+Define PEN_UP_POSITION and PEN_DOWN_POSITION appropriately. The servo gets clamped to these values, so to determine the correct values, set them to 60 and 180, then without the pen arm spring connected, send it values using "M300 Sxxx" to figure out what you should be using. Note that the servo will be driven to PEN_UP_POSITION on startup, so make sure to get that correct. The pen up position should be just high enough to clear an egg, and the pen down position low enough to firmly contact the egg, but you don't want the servo to move too much or the pen momentum can break the shell.
 
-Set minPenAxisStep and maxPenAxisStep. -30 and 30 should be fine; Eggbot patterns only use equivalent X values between -25 and 25.
+Set MIN_PEN_AXIS_STEP and MAX_PEN_AXIS_STEP. -480 and 480 should be fine; Eggbot patterns only use equivalent X values between -400 and 400.
 
-The DEFAULT_ZOOM_FACTOR is set to 0.0625 in order to be able to make use of g-code intended for the Eggbot without modification. Eggbot appears to use 3200x800 as the drawing field, whereas the native units are full steps. With 200 steps/revolution motors, that would give us a 1/16 zoom factor.
+I suggest using the [InkScape Unicorn Plugin](https://github.com/martymcguire/inkscape-unicorn) to generate the g-code. The maximum possible feedrate is ~265, because the servo loop will not step any faster.
 
-I suggest using the [InkScape Unicorn Plugin](https://github.com/martymcguire/inkscape-unicorn) to generate the g-code. Because the usable movement rates are so low (recommended 10-20 steps/s), you will want to edit unicorn.inx and modify the minimum value for the "xy-feedrate" parameter to 1.0 from 100.0. Once you have your g-code generated, you will want to remove the "M300 S255" line at the end, as I have not implemented turning off the servo and that will just drive the pen down.
+A simple g-code sender script is available in Utils. It traps "M01" to allow pauses between layers.
 
-A simple g-code sender script is available in Utils.
 
+# Original README
+
+This is the firmware for an EggBot-style SphereBot.
+The firmware directly interprets GCode sent over the serial port.
+
+There will be more information on the SphereBot at http://pleasantsoftware.com/developer/3d (in the near future...)
 
 Copyright 2011 by Eberhard Rensch <http://pleasantsoftware.com/developer/3d>
 

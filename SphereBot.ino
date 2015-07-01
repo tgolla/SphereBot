@@ -20,9 +20,8 @@
  * Updated to run on Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>.
  *
  * !!!!!!!!
- * This sketch needs the following non-standard libraries (install them in the Arduino library directory):
+ * This sketch needs the following non-standard library (install it in the Arduino library directory):
 
- * AccelStepper: https://github.com/jinschoi/AccelStepper
  * Adafruit Motor Shield: https://github.com/adafruit/Adafruit-Motor-Shield-library
  * !!!!!!!!
  */
@@ -32,8 +31,8 @@
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_PWMServoDriver.h"
 
-/* AccelStepper */
-#include <AccelStepper.h>
+/* DualStepper */
+#include "DualStepper.h"
 
 /* Servo library */
 #include <Servo.h>
@@ -57,45 +56,22 @@
 #define PEN_DOWN_POSITION 125
 
 /* X axis gets clamped to these values to prevent inadvertent damage. */
-int minPenAxisStep = -30;
-int maxPenAxisStep = 30;
+#define MIN_PEN_AXIS_STEP -480
+#define MAX_PEN_AXIS_STEP 480
 
-/* Suitable for Eggbot template and 200 steps/rev steppers */
-#define DEFAULT_ZOOM_FACTOR 0.0625
-
-#define STEP_MODE MICROSTEP
+/* Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
+#define DEFAULT_ZOOM_FACTOR 1.0
 
 
 /* --------- */
 
 /* Set up steppers */
 Adafruit_MotorShield MS = Adafruit_MotorShield();
-Adafruit_StepperMotor *xStepper = MS.getStepper(200, ROTATION_AXIS_PORT);
-Adafruit_StepperMotor *yStepper = MS.getStepper(200, PEN_AXIS_PORT);
+SingleStepper *xStepper = new SingleStepper(MS.getStepper(200, ROTATION_AXIS_PORT));
+SingleStepper *yStepper = new SingleStepper(MS.getStepper(200, PEN_AXIS_PORT));
+DualStepper *steppers = new DualStepper(xStepper, yStepper);
 
-void forwardStepRotation() {
-  xStepper->onestep(FORWARD, STEP_MODE);
-}
-
-void backwardStepRotation() {
-  xStepper->onestep(BACKWARD, STEP_MODE);
-}
-
-void forwardStepPenAxis() {
-  yStepper->onestep(FORWARD, STEP_MODE);
-}
-
-void backwardStepPenAxis() {
-  yStepper->onestep(BACKWARD, STEP_MODE);
-}
-
-
-AccelStepper penAxisStepper(forwardStepPenAxis, backwardStepPenAxis);
-AccelStepper rotationStepper(forwardStepRotation, backwardStepRotation);
-  
 Servo servo;
-
-boolean isRunning=false;
 
 // comm variables
 const int MAX_CMD_SIZE = 256;
@@ -108,33 +84,14 @@ boolean comment_mode = false;
 
 // GCode States
 boolean absoluteMode = true;
-double feedrate = 10.0; // full steps/s
+double feedrate = 160.0; // steps/s
 double zoom = DEFAULT_ZOOM_FACTOR;
 
-// full steps/s
-#define MAX_FEEDRATE 20.0
+// steps/s. A no-delay loop takes 3.79 ms per step, so this is the fastest we can go.
+#define MAX_FEEDRATE 265.0
 
 // ------
 
-/* Microstepping requires that we call onestep() MICROSTEPS times for
-   every full step.  We will handle this by dealing with all
-   coordinates and feed rates as full steps and multiplying them all
-   up by the appropriate factor whenever we interact with the stepper
-   library.
-
-   INTERLEAVE mode seems to act like 2x microstepping. */
-inline double convertSteps(double fullSteps)
-{
-  switch (STEP_MODE) {
-  case INTERLEAVE:
-    return fullSteps * 2;
-  case MICROSTEP:
-    return fullSteps * MICROSTEPS;
-  default:
-    return fullSteps;
-  }
-}
-  
 
 void setup()
 {
@@ -144,57 +101,21 @@ void setup()
     MS.begin();
     Serial.println("Ready");
 
-    double maxFeedrate = convertSteps(MAX_FEEDRATE);
-
-    penAxisStepper.setMaxSpeed(maxFeedrate);
-    rotationStepper.setMaxSpeed(maxFeedrate);
+    steppers->setMaxSpeed(MAX_FEEDRATE);
     
     servo.attach(SERVO_PIN);
     servo.write(PEN_UP_POSITION);
     delay(100);
-
-    minPenAxisStep = convertSteps(minPenAxisStep);
-    maxPenAxisStep = convertSteps(maxPenAxisStep);
 }
 
 void loop() // input loop, looks for manual input and then checks to see if and serial commands are coming in
 {
   get_command(); // check for Gcodes
-  if (isRunning) {
-    if (penAxisStepper.distanceToGo() == 0 && rotationStepper.distanceToGo() == 0) {
-      isRunning = false;
-    } else {
-      penAxisStepper.runSpeedToPosition();
-      rotationStepper.runSpeedToPosition();
-    }
-  }
-}
-
-/* All arguments must be in converted partial step units:
-   double for INTERLEAVE, or multiplied by MICROSTEPS for MICROSTEP mode. */
-void commitSteppers(long x, long y, double speedrate)
-{
-  long deltaStepsX = x - rotationStepper.currentPosition();
-  long deltaStepsY = y - penAxisStepper.currentPosition();
-
-  // how long is our line length?
-  double distance = sqrt(deltaStepsX*deltaStepsX+deltaStepsY*deltaStepsY);
-
-  // go there.
-  rotationStepper.moveTo(x);
-  penAxisStepper.moveTo(y);
-
-  // compute speed for this move. Must call setSpeed after moveTo for constant speed
-  // moves (can't use acceleration because the axes won't coordinate).
-  rotationStepper.setSpeed(deltaStepsX * speedrate / distance);
-  penAxisStepper.setSpeed(deltaStepsY * speedrate / distance);
-
-  isRunning=true;
 }
 
 void get_command() // gets commands from serial connection and then calls up subsequent functions to deal with them
 {
-  if (!isRunning && Serial.available() > 0) // each time we see something
+  if (Serial.available() > 0) // each time we see something
   {
     serial_char = Serial.read(); // read individual byte from serial connection
     
@@ -254,8 +175,8 @@ void process_commands(char command[], int command_length) // deals with standard
   {
     int codenum = (int)strtod(&command[1], NULL);
     
-    double tempX = rotationStepper.currentPosition();
-    double tempY = penAxisStepper.currentPosition();
+    double tempX = steppers->xPos();
+    double tempY = steppers->yPos();
     
     double xVal;
     boolean hasXVal = getValue('X', command, &xVal);
@@ -280,34 +201,34 @@ void process_commands(char command[], int command_length) // deals with standard
     if(absoluteMode)
     {
       if(hasXVal)
-        tempX=convertSteps(xVal);
+        tempX=xVal;
       if(hasYVal)
-        tempY=convertSteps(yVal);
+        tempY=yVal;
     }
     else
     {
       if(hasXVal)
-        tempX+=convertSteps(xVal);
+        tempX+=xVal;
       if(hasYVal)
-        tempY+=convertSteps(yVal);
+        tempY+=yVal;
     }
 
-    tempY = clamp(tempY, minPenAxisStep, maxPenAxisStep);
+    tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
 
     switch(codenum)
     {
       case 0: // G0, Rapid positioning
-        commitSteppers(tempX, tempY, convertSteps(MAX_FEEDRATE));
+	steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
         break;
       case 1: // G1, linear interpolation at specified speed
-        commitSteppers(tempX, tempY, convertSteps(feedrate));
+	steppers->moveTo(tempX, tempY, feedrate);
         break;
       case 2: // G2, Clockwise arc
       case 3: // G3, Counterclockwise arc
         if(hasIVal && hasJVal)
         {
-	  double centerX=rotationStepper.currentPosition()+convertSteps(iVal);
-	  double centerY=penAxisStepper.currentPosition()+convertSteps(jVal);
+	  double centerX=steppers->xPos()+iVal;
+	  double centerY=steppers->yPos()+jVal;
 	  drawArc(centerX, centerY, tempX, tempY, (codenum==2));
         }
         else if(hasRVal)
@@ -343,7 +264,8 @@ void process_commands(char command[], int command_length) // deals with standard
       case 300: // Servo Position
         if(getValue('S', command, &value))
         {
-          servo.attach(SERVO_PIN);
+	  if (value > 180)
+	    value = PEN_UP_POSITION;
 	  value = clamp(value, PEN_UP_POSITION, PEN_DOWN_POSITION); 
 
 	  servo.write((int)value);
@@ -383,8 +305,8 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
   double bY;
 
   // figure out our deltas
-  double currentX = rotationStepper.currentPosition();
-  double currentY = penAxisStepper.currentPosition();
+  double currentX = steppers->xPos();
+  double currentY = steppers->yPos();
   aX = currentX - centerX;
   aY = currentY - centerY;
   bX = endpointX - centerX;
@@ -438,19 +360,6 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
     newPointY= centerY + radius	* sin(angleA + angle * ((double) step / steps));
 
     // start the move
-    commitSteppers(newPointX, newPointY, convertSteps(feedrate));
-    
-    while(isRunning)
-    {
-      if (penAxisStepper.distanceToGo() == 0 && rotationStepper.distanceToGo() == 0) {
-	isRunning = false;
-      } else {
-	penAxisStepper.runSpeedToPosition();
-	rotationStepper.runSpeedToPosition();
-      }
-    }
+    steppers->moveTo(newPointX, newPointY, feedrate);
   }
 }
-
-/* Make life easier for vim users */
-/* vim:set filetype=cpp: */
