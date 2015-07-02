@@ -53,7 +53,7 @@
 
 /* Pen servo gets clamped to these values. */
 #define PEN_UP_POSITION 115
-#define PEN_DOWN_POSITION 125
+#define PEN_DOWN_POSITION 130
 
 /* X axis gets clamped to these values to prevent inadvertent damage. */
 #define MIN_PEN_AXIS_STEP -480
