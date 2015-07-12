@@ -83,7 +83,7 @@ byte pen_up_position;
 Adafruit_MotorShield MS = Adafruit_MotorShield();
 SingleStepper *xStepper = new SingleStepper(MS.getStepper(200, ROTATION_AXIS_PORT));
 SingleStepper *yStepper = new SingleStepper(MS.getStepper(200, PEN_AXIS_PORT));
-DualStepper *steppers = new DualStepper(xStepper, yStepper);
+DualStepper *steppers = new DualStepper(xStepper, yStepper, 200 * MICROSTEPS);
 
 Servo servo;
 
@@ -100,6 +100,7 @@ boolean comment_mode = false;
 boolean absoluteMode = true;
 double feedrate = 160.0; // steps/s
 double zoom = DEFAULT_ZOOM_FACTOR;
+boolean penUp; // for optimizing travel moves
 
 // steps/s. A no-delay loop takes 3.79 ms per step, so this is the fastest we can go.
 #define MAX_FEEDRATE 265.0
@@ -148,6 +149,7 @@ void setup()
     
   servo.attach(SERVO_PIN);
   servo.write(pen_up_position);
+  penUp = true;
   delay(100);
 }
 
@@ -264,7 +266,11 @@ void process_commands(char command[], int command_length) // deals with standard
 	  steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
 	  break;
 	case 1: // G1, linear interpolation at specified speed
-	  steppers->moveTo(tempX, tempY, feedrate);
+	  if (penUp) {
+	    steppers->travelTo(tempX, tempY, feedrate);
+	  } else {
+	    steppers->moveTo(tempX, tempY, feedrate);
+	  }
 	  break;
 	case 2: // G2, Clockwise arc
 	case 3: // G3, Counterclockwise arc
@@ -310,6 +316,7 @@ void process_commands(char command[], int command_length) // deals with standard
 	      value = pen_up_position;
 	    value = clamp(value, min_pen_position, max_pen_position);
 	    servo.write((int)value);
+	    penUp = value == pen_up_position;
 	  }
 	break;
 
