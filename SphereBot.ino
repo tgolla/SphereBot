@@ -95,17 +95,17 @@ double zoom = DEFAULT_ZOOM_FACTOR;
 
 void setup()
 {
-    Serial.begin(115200);
-    clear_buffer();
+  Serial.begin(115200);
+  clear_buffer();
 
-    MS.begin();
-    Serial.println("Ready");
+  MS.begin();
+  Serial.println("Ready");
 
-    steppers->setMaxSpeed(MAX_FEEDRATE);
+  steppers->setMaxSpeed(MAX_FEEDRATE);
     
-    servo.attach(SERVO_PIN);
-    servo.write(PEN_UP_POSITION);
-    delay(100);
+  servo.attach(SERVO_PIN);
+  servo.write(PEN_UP_POSITION);
+  delay(100);
 }
 
 void loop() // input loop, looks for manual input and then checks to see if and serial commands are coming in
@@ -116,35 +116,35 @@ void loop() // input loop, looks for manual input and then checks to see if and 
 void get_command() // gets commands from serial connection and then calls up subsequent functions to deal with them
 {
   if (Serial.available() > 0) // each time we see something
-  {
-    serial_char = Serial.read(); // read individual byte from serial connection
-    
-    if (serial_char == '\n' || serial_char == '\r') // end of a command character
-    { 
-      buffer[serial_count]=0;
-      process_commands(buffer, serial_count);
-      clear_buffer();
-      comment_mode = false; // reset comment mode before each new command is processed
-    }
-    else // not end of command
     {
-      if (serial_char == ';' || serial_char == '(') // semicolon signifies start of comment
-      {
-        comment_mode = true;
-      }
+      serial_char = Serial.read(); // read individual byte from serial connection
+    
+      if (serial_char == '\n' || serial_char == '\r') // end of a command character
+	{ 
+	  buffer[serial_count]=0;
+	  process_commands(buffer, serial_count);
+	  clear_buffer();
+	  comment_mode = false; // reset comment mode before each new command is processed
+	}
+      else // not end of command
+	{
+	  if (serial_char == ';' || serial_char == '(') // semicolon signifies start of comment
+	    {
+	      comment_mode = true;
+	    }
       
-      if (comment_mode != true) // ignore if a comment has started
-      {
-        buffer[serial_count] = serial_char; // add byte to buffer string
-        serial_count++;
-        if (serial_count > MAX_CMD_SIZE) // overflow, dump and restart
-        {
-          clear_buffer();
-          Serial.flush();
-        }
-      }
+	  if (comment_mode != true) // ignore if a comment has started
+	    {
+	      buffer[serial_count] = serial_char; // add byte to buffer string
+	      serial_count++;
+	      if (serial_count > MAX_CMD_SIZE) // overflow, dump and restart
+		{
+		  clear_buffer();
+		  Serial.flush();
+		}
+	    }
+	}
     }
-  }
 }
 
 void clear_buffer() // empties command buffer from serial connection
@@ -157,10 +157,10 @@ boolean getValue(char key, char command[], double* value)
   // find key parameter
   strchr_pointer = strchr(buffer, key);
   if (strchr_pointer != NULL) // We found a key value
-  {
-    *value = (double)strtod(&command[strchr_pointer - command + 1], NULL);
-    return true;  
-  }
+    {
+      *value = (double)strtod(&command[strchr_pointer - command + 1], NULL);
+      return true;  
+    }
   return false;
 }
 
@@ -172,114 +172,114 @@ inline double clamp(double x, double a, double b)
 void process_commands(char command[], int command_length) // deals with standardized input from serial connection
 {
   if (command_length>0 && command[0] == 'G') // G code
-  {
-    int codenum = (int)strtod(&command[1], NULL);
-    
-    double tempX = steppers->xPos();
-    double tempY = steppers->yPos();
-    
-    double xVal;
-    boolean hasXVal = getValue('X', command, &xVal);
-    if(hasXVal) xVal*=zoom;
-    double yVal;
-    boolean hasYVal = getValue('Y', command, &yVal);
-    if(hasYVal) yVal*=zoom;
-    double iVal;
-    boolean hasIVal = getValue('I', command, &iVal);
-    if(hasIVal) iVal*=zoom;
-    double jVal;
-    boolean hasJVal = getValue('J', command, &jVal);
-    if(hasJVal) jVal*=zoom;
-    double rVal;
-    boolean hasRVal = getValue('R', command, &rVal);
-    if(hasRVal) rVal*=zoom;
-    double pVal;
-    boolean hasPVal = getValue('P', command, &pVal);
-    
-    getValue('F', command, &feedrate);
-
-    if(absoluteMode)
     {
-      if(hasXVal)
-        tempX=xVal;
-      if(hasYVal)
-        tempY=yVal;
-    }
-    else
-    {
-      if(hasXVal)
-        tempX+=xVal;
-      if(hasYVal)
-        tempY+=yVal;
-    }
+      int codenum = (int)strtod(&command[1], NULL);
+    
+      double tempX = steppers->xPos();
+      double tempY = steppers->yPos();
+    
+      double xVal;
+      boolean hasXVal = getValue('X', command, &xVal);
+      if(hasXVal) xVal*=zoom;
+      double yVal;
+      boolean hasYVal = getValue('Y', command, &yVal);
+      if(hasYVal) yVal*=zoom;
+      double iVal;
+      boolean hasIVal = getValue('I', command, &iVal);
+      if(hasIVal) iVal*=zoom;
+      double jVal;
+      boolean hasJVal = getValue('J', command, &jVal);
+      if(hasJVal) jVal*=zoom;
+      double rVal;
+      boolean hasRVal = getValue('R', command, &rVal);
+      if(hasRVal) rVal*=zoom;
+      double pVal;
+      boolean hasPVal = getValue('P', command, &pVal);
+    
+      getValue('F', command, &feedrate);
 
-    tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
+      if(absoluteMode)
+	{
+	  if(hasXVal)
+	    tempX=xVal;
+	  if(hasYVal)
+	    tempY=yVal;
+	}
+      else
+	{
+	  if(hasXVal)
+	    tempX+=xVal;
+	  if(hasYVal)
+	    tempY+=yVal;
+	}
 
-    switch(codenum)
-    {
-      case 0: // G0, Rapid positioning
-	steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
-        break;
-      case 1: // G1, linear interpolation at specified speed
-	steppers->moveTo(tempX, tempY, feedrate);
-        break;
-      case 2: // G2, Clockwise arc
-      case 3: // G3, Counterclockwise arc
-        if(hasIVal && hasJVal)
-        {
-	  double centerX=steppers->xPos()+iVal;
-	  double centerY=steppers->yPos()+jVal;
-	  drawArc(centerX, centerY, tempX, tempY, (codenum==2));
-        }
-        else if(hasRVal)
-        {
-          //drawRadius(tempX, tempY, rVal, (codenum==2));
-        }
-        break;
-      case 4: // G4, Delay P ms
-        if(hasPVal)
-        {
-	  delay(pVal);
-        }
-        break;
-      case 90: // G90, Absolute Positioning
-        absoluteMode = true;
-        break;
-      case 91: // G91, Incremental Positioning
-        absoluteMode = false;
-        break;
-    }
-  }  
+      tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
+
+      switch(codenum)
+	{
+	case 0: // G0, Rapid positioning
+	  steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
+	  break;
+	case 1: // G1, linear interpolation at specified speed
+	  steppers->moveTo(tempX, tempY, feedrate);
+	  break;
+	case 2: // G2, Clockwise arc
+	case 3: // G3, Counterclockwise arc
+	  if(hasIVal && hasJVal)
+	    {
+	      double centerX=steppers->xPos()+iVal;
+	      double centerY=steppers->yPos()+jVal;
+	      drawArc(centerX, centerY, tempX, tempY, (codenum==2));
+	    }
+	  else if(hasRVal)
+	    {
+	      //drawRadius(tempX, tempY, rVal, (codenum==2));
+	    }
+	  break;
+	case 4: // G4, Delay P ms
+	  if(hasPVal)
+	    {
+	      delay(pVal);
+	    }
+	  break;
+	case 90: // G90, Absolute Positioning
+	  absoluteMode = true;
+	  break;
+	case 91: // G91, Incremental Positioning
+	  absoluteMode = false;
+	  break;
+	}
+    }  
   else if (command_length>0 && command[0] == 'M') // M code
-  {
-    double value;
-    int codenum = (int)strtod(&command[1], NULL);
-    switch(codenum)
-    {   
-      case 18: // Disable Drives
-	xStepper->release();
-	yStepper->release();
-        break;
+    {
+      double value;
+      int codenum = (int)strtod(&command[1], NULL);
+      switch(codenum)
+	{   
+	case 18: // Disable Drives
+	  xStepper->release();
+	  yStepper->release();
+	  break;
 
-      case 300: // Servo Position
-        if(getValue('S', command, &value))
-        {
-	  if (value > 180)
-	    value = PEN_UP_POSITION;
-	  value = clamp(value, PEN_UP_POSITION, PEN_DOWN_POSITION); 
+	case 300: // Servo Position
+	  if(getValue('S', command, &value))
+	    {
+	      if (value > 180)
+		value = PEN_UP_POSITION;
+	      value = clamp(value, PEN_UP_POSITION, PEN_DOWN_POSITION); 
 
-	  servo.write((int)value);
-        }
-        break;
+	      servo.write((int)value);
+	    }
+	  break;
         
-       case 402: // Propretary: Set global zoom factor
-        if(getValue('S', command, &value))
-        {
-          zoom = value;
-        }
+	case 402: // Propretary: Set global zoom factor
+	  if(getValue('S', command, &value))
+	    {
+	      zoom = value;
+	    }
 
-    }
-  }  
+	}
+    }  
 
   // done processing commands
   if (Serial.available() <= 0) {
@@ -351,9 +351,9 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
   for (s = 1; s <= steps; s++) {
     // Forwards for CCW, backwards for CW
     if (!clockwise)
-	step = s;
+      step = s;
     else
-	step = steps - s;
+      step = steps - s;
 
     // calculate our waypoint.
     newPointX = centerX + radius * cos(angleA + angle * ((double) step / steps));
