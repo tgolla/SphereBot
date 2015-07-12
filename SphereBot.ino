@@ -37,6 +37,8 @@
 /* Servo library */
 #include <Servo.h>
 
+#include <EEPROM.h>
+
 
 /*
  * PINS
@@ -52,8 +54,11 @@
  */
 
 /* Pen servo gets clamped to these values. */
-#define PEN_UP_POSITION 115
-#define PEN_DOWN_POSITION 130
+#define MIN_PEN_POSITION 100
+#define MAX_PEN_POSITION 130
+
+/* Default pen up position. */
+#define PEN_UP_POSITION 107
 
 /* X axis gets clamped to these values to prevent inadvertent damage. */
 #define MIN_PEN_AXIS_STEP -480
@@ -62,6 +67,15 @@
 /* Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
 #define DEFAULT_ZOOM_FACTOR 1.0
 
+enum {
+  VALUES_SAVED_EEPROM_LOCATION, MIN_PEN_EEPROM_LOCATION, MAX_PEN_EEPROM_LOCATION, PEN_UP_EEPROM_LOCATION
+};
+
+#define EEPROM_MAGIC_NUMBER 53
+
+byte min_pen_position;
+byte max_pen_position;
+byte pen_up_position;
 
 /* --------- */
 
@@ -92,9 +106,38 @@ double zoom = DEFAULT_ZOOM_FACTOR;
 
 // ------
 
+void load_pen_configuration()
+{
+  // Check EEPROM location 0 for presence of a magic number. If it's there, we have saved values.
+  if (EEPROM.read(VALUES_SAVED_EEPROM_LOCATION) == EEPROM_MAGIC_NUMBER) {
+    min_pen_position = EEPROM.read(MIN_PEN_EEPROM_LOCATION);
+    max_pen_position = EEPROM.read(MAX_PEN_EEPROM_LOCATION);
+    pen_up_position = EEPROM.read(PEN_UP_EEPROM_LOCATION);
+  } else {
+    min_pen_position = MIN_PEN_POSITION;
+    max_pen_position = MAX_PEN_POSITION;
+    pen_up_position = PEN_UP_POSITION;
+  }
+}
+
+void save_pen_configuration() {
+  EEPROM.update(MIN_PEN_EEPROM_LOCATION, min_pen_position);
+  EEPROM.update(MAX_PEN_EEPROM_LOCATION, max_pen_position);
+  EEPROM.update(PEN_UP_EEPROM_LOCATION, pen_up_position);
+  EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, EEPROM_MAGIC_NUMBER);
+}
+
+void clear_pen_configuration() {
+  min_pen_position = MIN_PEN_POSITION;
+  max_pen_position = MAX_PEN_POSITION;
+  pen_up_position = PEN_UP_POSITION;
+  EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, 0xff);
+}
+
 
 void setup()
 {
+  load_pen_configuration();
   Serial.begin(115200);
   clear_buffer();
 
@@ -104,7 +147,7 @@ void setup()
   steppers->setMaxSpeed(MAX_FEEDRATE);
     
   servo.attach(SERVO_PIN);
-  servo.write(PEN_UP_POSITION);
+  servo.write(pen_up_position);
   delay(100);
 }
 
@@ -254,32 +297,59 @@ void process_commands(char command[], int command_length) // deals with standard
     {
       double value;
       int codenum = (int)strtod(&command[1], NULL);
-      switch(codenum)
-	{   
-	case 18: // Disable Drives
-	  xStepper->release();
-	  yStepper->release();
-	  break;
+      switch(codenum) {
+      case 18: // Disable Drives
+	xStepper->release();
+	yStepper->release();
+	break;
 
-	case 300: // Servo Position
-	  if(getValue('S', command, &value))
-	    {
-	      if (value > 180)
-		value = PEN_UP_POSITION;
-	      value = clamp(value, PEN_UP_POSITION, PEN_DOWN_POSITION); 
+      case 300: // Servo Position
+	if(getValue('S', command, &value))
+	  {
+	    if (value > 180)
+	      value = pen_up_position;
+	    value = clamp(value, min_pen_position, max_pen_position);
+	    servo.write((int)value);
+	  }
+	break;
 
-	      servo.write((int)value);
-	    }
-	  break;
-        
-	case 402: // Propretary: Set global zoom factor
-	  if(getValue('S', command, &value))
-	    {
-	      zoom = value;
-	    }
-
+      case 301: // Set min pen position.
+	if (getValue('P', command, &value)) {
+	  min_pen_position = value;
 	}
-    }  
+	break;
+
+      case 302: // Set max pen position.
+	if (getValue('P', command, &value)) {
+	  max_pen_position = value;
+	}
+	break;
+
+      case 303: // set default pen up position.
+	if (getValue('P', command, &value)) {
+	  pen_up_position = value;
+	}
+	break;
+        
+      case 402: // Propretary: Set global zoom factor
+	if(getValue('S', command, &value)) {
+	  zoom = value;
+	}
+	break;
+
+      case 500:
+	save_pen_configuration();
+	break;
+
+      case 501:
+	load_pen_configuration();
+	break;
+
+      case 502:
+	clear_pen_configuration();
+	break;
+      }
+    }
 
   // done processing commands
   if (Serial.available() <= 0) {
