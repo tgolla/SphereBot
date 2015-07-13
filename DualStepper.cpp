@@ -17,12 +17,13 @@
 
 #include "DualStepper.h"
 
-DualStepper::DualStepper(SingleStepper *xs, SingleStepper *ys)
+DualStepper::DualStepper(SingleStepper *xs, SingleStepper *ys, unsigned int stepsPerRev)
 {
   xStepper = xs;
   yStepper = ys;
   majorAxisSpeed = 0.0;
   maxSpeed = 100.0;
+  xStepsPerRev = stepsPerRev;
 }
 
 void
@@ -53,6 +54,22 @@ octant(int dx, int dy)
     return 4;
   else
     return 5;
+}
+
+void
+DualStepper::travelTo(int ax, int ay, float speed)
+{
+  int halfRevSteps = xStepsPerRev / 2;
+  int dx = abs(ax - xStepper->pos);
+
+  if (dx > halfRevSteps) {
+    if (ax > xStepper->pos) {
+      xStepper->pos += xStepsPerRev;
+    } else {
+      xStepper->pos -= xStepsPerRev;
+    }
+  }
+  moveTo(ax, ay, speed);
 }
 
 void

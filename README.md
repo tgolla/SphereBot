@@ -15,7 +15,9 @@ To use:
 
 Plug in the stepper motors and servo to the motor shield. Use M1/M2 for the pen motor, and M3/M4 for the rotation motor. M1 and M3 should have the same colored pairs of wires, as should M2 and M4, in order to have everything turn in the correct directions. The servo should go into the Servo 2 port with the brown wire towards the edge of the board. If you do things differently, edit PEN_AXIS_PORT, ROTATION_AXIS_PORT, and SERVO_PIN appropriately.
 
-Define PEN_UP_POSITION and PEN_DOWN_POSITION appropriately. The servo gets clamped to these values, so to determine the correct values, set them to 60 and 180, then without the pen arm spring connected, send it values using "M300 Sxxx" to figure out what you should be using. Note that the servo will be driven to PEN_UP_POSITION on startup, so make sure to get that correct. The pen up position should be just high enough to clear an egg, and the pen down position low enough to firmly contact the egg, but you don't want the servo to move too much or the pen momentum can break the shell.
+Define MIN_PEN_POSITION, MAX_PEN_POSITION, and PEN_UP_POSITION appropriately. The servo gets clamped to the min and max values, and is initialized to the pen up position on startup. You can use M300 Sxxx to experiment with servo positions, and M301, M302, and M303 to set the min, max, and default pen up positions dynamically. Use "P" parameters with M301-303. Issue an M500 to save the values.
+
+The actual pen up/pen down servo positions used during printing will be sent in the gcode. If the gcode pen up position is the same as the firmware pen_up_position, an optimization will be made where a pen up travel move that requires more than half a full rotation in the X axis will take the short way around. The pen up position should be just high enough to clear an egg, and the pen down position low enough to firmly contact the egg, but you don't want the servo to move too much or the pen momentum can break the shell.
 
 Set MIN_PEN_AXIS_STEP and MAX_PEN_AXIS_STEP. -480 and 480 should be fine; Eggbot patterns only use equivalent X values between -400 and 400.
 

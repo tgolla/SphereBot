@@ -23,8 +23,9 @@
 class DualStepper
 {
  public:
-  DualStepper(SingleStepper *xStepper, SingleStepper *yStepper);
+  DualStepper(SingleStepper *xStepper, SingleStepper *yStepper, unsigned int xStepsPerRev);
   void moveTo(int x, int y, float speed);
+  void travelTo(int x, int y, float speed);
   void setMaxSpeed(float ms);
   inline int xPos() { return xStepper->pos; }
   inline int yPos() { return yStepper->pos; }
@@ -35,6 +36,8 @@ class DualStepper
   // Actual X and Y steppers
   SingleStepper *xStepper;
   SingleStepper *yStepper;
+
+  unsigned int xStepsPerRev;
 
   // Virtual X and Y steppers for Bresenham (transformed to first octant).
   SingleStepper *_xStepper;
