@@ -12,13 +12,17 @@ SerialPort.open("/dev/cu.usbmodem145311", 115200, 8, 1, SerialPort::NONE) do |sp
   end
   File.foreach(filename) do |line|
     line.chomp!
+    comment = ""
+    if md = line.match(/\((.*)\)/)
+      comment = md[1]
+    end
     line.gsub!(/\s*\(.*\)/, '')
     line.gsub!(/\s*;.*/, '')
     if !line.empty?
       # puts line
 
       if line == "M01"
-        puts "Pausing. Press Enter to continue."
+        puts "Pausing: (#{comment}) Press Enter to continue."
         gets
         next
       end
