@@ -102,8 +102,8 @@ double feedrate = 160.0; // steps/s
 double zoom = DEFAULT_ZOOM_FACTOR;
 boolean penUp; // for optimizing travel moves
 
-// steps/s. A no-delay loop takes 3.79 ms per step, so this is the fastest we can go.
-#define MAX_FEEDRATE 265.0
+// steps/s. A no-delay loop takes 1.29 ms per step, so this is the fastest we can go.
+#define MAX_FEEDRATE 775.0
 
 // ------
 
@@ -143,6 +143,7 @@ void setup()
   clear_buffer();
 
   MS.begin();
+  TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
   Serial.println("Ready");
 
   steppers->setMaxSpeed(MAX_FEEDRATE);

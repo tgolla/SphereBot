@@ -151,8 +151,8 @@ DualStepper::plotLine(unsigned int dx, unsigned int dy)
   // Serial.print("delay: ");
   // Serial.println(usPerStep);
 
-  if (usPerStep >= 3790)
-    usPerStep = usPerStep - 3790; // loop takes 3.79 ms without any delay.
+  if (usPerStep >= 1290)
+    usPerStep = usPerStep - 1290; // loop takes 1.29 ms without any delay.
   else
     usPerStep = 0;
 
@@ -174,6 +174,7 @@ DualStepper::plotLine(unsigned int dx, unsigned int dy)
       delayMicroseconds(usPerStep);
   }
 
+  // unsigned long endTime = millis();
   // Serial.print("average delay in ms: ");
-  // Serial.println((millis() - time) / (float) dx);
+  // Serial.println((endTime - time) / (float) dx);
 }
