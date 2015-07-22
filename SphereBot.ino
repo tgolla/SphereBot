@@ -60,6 +60,10 @@
 /* Default pen up position. */
 #define PEN_UP_POSITION 107
 
+/* How long to take for pen down moves in ms. */
+#define PEN_DOWN_MOVE_TIME 200
+
+
 /* X axis gets clamped to these values to prevent inadvertent damage. */
 #define MIN_PEN_AXIS_STEP -480
 #define MAX_PEN_AXIS_STEP 480
@@ -76,6 +80,7 @@ enum {
 byte min_pen_position;
 byte max_pen_position;
 byte pen_up_position;
+byte current_pen_position;
 
 /* --------- */
 
@@ -100,7 +105,6 @@ boolean comment_mode = false;
 boolean absoluteMode = true;
 double feedrate = 160.0; // steps/s
 double zoom = DEFAULT_ZOOM_FACTOR;
-boolean penUp; // for optimizing travel moves
 
 // steps/s. A no-delay loop takes 1.29 ms per step, so this is the fastest we can go.
 #define MAX_FEEDRATE 775.0
@@ -135,6 +139,24 @@ void clear_pen_configuration() {
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, 0xff);
 }
 
+void move_pen(byte pos) {
+  if (pos > current_pen_position) {
+    // ease it down
+    int pen_delay = PEN_DOWN_MOVE_TIME / 10;
+    int pen_increment = (pos - current_pen_position) / 10;
+    for (int i = 1; i < 10; i++) { // loop takes it to one step less than full travel
+      servo.write(current_pen_position + pen_increment * i);
+      delay(pen_delay);
+    }
+    servo.write(pos); // Finish off exactly; no round off errors.
+  } else {
+    // slam it up
+    servo.write(pos);
+  }
+
+  current_pen_position = pos;
+}
+
 
 void setup()
 {
@@ -150,7 +172,8 @@ void setup()
     
   servo.attach(SERVO_PIN);
   servo.write(pen_up_position);
-  penUp = true;
+  current_pen_position = pen_up_position;
+
   delay(100);
 }
 
@@ -267,7 +290,8 @@ void process_commands(char command[], int command_length) // deals with standard
 	  steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
 	  break;
 	case 1: // G1, linear interpolation at specified speed
-	  if (penUp) {
+	  if (current_pen_position <= pen_up_position) {
+	    // potentially wrap around the sphere if pen is up
 	    steppers->travelTo(tempX, tempY, feedrate);
 	  } else {
 	    steppers->moveTo(tempX, tempY, feedrate);
@@ -316,8 +340,7 @@ void process_commands(char command[], int command_length) // deals with standard
 	    if (value > 180)
 	      value = pen_up_position;
 	    value = clamp(value, min_pen_position, max_pen_position);
-	    servo.write((int)value);
-	    penUp = value == pen_up_position;
+	    move_pen(value);
 	  }
 	break;
 
