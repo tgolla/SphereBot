@@ -143,7 +143,7 @@ void move_pen(byte pos) {
   if (pos > current_pen_position) {
     // ease it down
     int pen_delay = PEN_DOWN_MOVE_TIME / 10;
-    int pen_increment = (pos - current_pen_position) / 10;
+    float pen_increment = (pos - current_pen_position) / 10.0;
     for (int i = 1; i < 10; i++) { // loop takes it to one step less than full travel
       servo.write(current_pen_position + pen_increment * i);
       delay(pen_delay);
