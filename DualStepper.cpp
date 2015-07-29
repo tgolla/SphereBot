@@ -85,66 +85,34 @@ DualStepper::moveTo(int ax, int ay, float speed)
 
   switch (octant(dx, dy)) {
   case 0:
-    _xStepper = xStepper;
-    _yStepper = yStepper;
-    xdir = FORWARD;
-    ydir = FORWARD;
-    plotLine(dx, dy);
+    plotLine(xStepper, yStepper, FORWARD, FORWARD, dx, dy);
     break;
   case 1:
-    _xStepper = yStepper;
-    _yStepper = xStepper;
-    xdir = FORWARD;
-    ydir = FORWARD;
-    plotLine(dy, dx);
+    plotLine(yStepper, xStepper, FORWARD, FORWARD, dy, dx);
     break;
   case 2:
-    _xStepper = yStepper;
-    _yStepper = xStepper;
-    xdir = FORWARD;
-    ydir = BACKWARD;
-    plotLine(dy, -dx);
+    plotLine(yStepper, xStepper, FORWARD, BACKWARD, dy, -dx);
     break;
   case 3:
-    _xStepper = xStepper;
-    _yStepper = yStepper;
-    xdir = BACKWARD;
-    ydir = FORWARD;
-    plotLine(-dx, dy);
+    plotLine(xStepper, yStepper, BACKWARD, FORWARD, -dx, dy);
     break;
   case 4:
-    _xStepper = xStepper;
-    _yStepper = yStepper;
-    xdir = BACKWARD;
-    ydir = BACKWARD;
-    plotLine(-dx, -dy);
+    plotLine(xStepper, yStepper, BACKWARD, BACKWARD, -dx, -dy);
     break;
   case 5:
-    _xStepper = yStepper;
-    _yStepper = xStepper;
-    xdir = BACKWARD;
-    ydir = BACKWARD;
-    plotLine(-dy, -dx);
+    plotLine(yStepper, xStepper, BACKWARD, BACKWARD, -dy, -dx);
     break;
   case 6:
-    _xStepper = yStepper;
-    _yStepper = xStepper;
-    xdir = BACKWARD;
-    ydir = FORWARD;
-    plotLine(-dy, dx);
+    plotLine(yStepper, xStepper, BACKWARD, FORWARD, -dy, dx);
     break;
   case 7:
-    _xStepper = xStepper;
-    _yStepper = yStepper;
-    xdir = FORWARD;
-    ydir = BACKWARD;
-    plotLine(dx, -dy);
+    plotLine(xStepper, yStepper, FORWARD, BACKWARD, dx, -dy);
     break;
   }
 }
 
 void
-DualStepper::plotLine(unsigned int dx, unsigned int dy)
+DualStepper::plotLine(SingleStepper *xAxis, SingleStepper *yAxis, uint8_t xdir, uint8_t ydir, unsigned int dx, unsigned int dy)
 {
   unsigned long usPerStep = 1000000L / majorAxisSpeed;
 
@@ -163,9 +131,9 @@ DualStepper::plotLine(unsigned int dx, unsigned int dy)
   // unsigned long time = millis();
 
   for (int x = 1; x <= dx; x++) {
-    _xStepper->step(xdir);
+    xAxis->step(xdir);
     if (error > 0) {
-      _yStepper->step(ydir);
+      yAxis->step(ydir);
       error += 2 * dy - 2 * dx;
     } else {
       error += 2 * dy;

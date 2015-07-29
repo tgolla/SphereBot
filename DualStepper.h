@@ -39,15 +39,8 @@ class DualStepper
 
   unsigned int xStepsPerRev;
 
-  // Virtual X and Y steppers for Bresenham (transformed to first octant).
-  SingleStepper *_xStepper;
-  SingleStepper *_yStepper;
-  // Stepper direction for transformed steppers.
-  uint8_t xdir;
-  uint8_t ydir;
-
   // Bresenham line algorithm. Blocks until finished moving.
-  void plotLine(unsigned int dx, unsigned int dy);
+  void plotLine(SingleStepper *xAxis, SingleStepper *yAxis, uint8_t xdir, uint8_t ydir, unsigned int dx, unsigned int dy);
 
   float majorAxisSpeed;
   float maxSpeed;
