@@ -10,7 +10,7 @@ This is a fork of Eberhard Rensch's SphereBot firmware. This version has been mo
 
 **IMPORTANT**: This sketch needs the following non-standard library (install them in the Arduino library directory):
 
-* Adafruit Motor Shield: https://github.com/adafruit/Adafruit-Motor-Shield-library
+* Adafruit Motor Shield v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
 
 To use:
 
