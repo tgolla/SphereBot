@@ -18,6 +18,7 @@
 #ifndef DualStepper_h
 #define DualStepper_h
 
+#include "Configuration.h"
 #include "SingleStepper.h"
 
 class DualStepper

@@ -18,18 +18,22 @@
  * by Martin Price <http://www.HeliumFrog.com>
  *
  * Updated to run on Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>.
+ * Utated to support both versions of Adafruit motor shield by GrAndAG
  *
  * !!!!!!!!
  * This sketch needs the following non-standard library (install it in the Arduino library directory):
 
- * Adafruit Motor Shield: https://github.com/adafruit/Adafruit-Motor-Shield-library
+ * Adafruit Motor Shield:
+ *         v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
+ *         v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
+ *
+ * Also tune your configuration in "Configuration.h" file.
+ *
  * !!!!!!!!
  */
 
-/* Adafruit Motor Shield libraries */
+#include "Configuration.h"
 #include <Wire.h>
-#include <Adafruit_MotorShield.h>
-#include "utility/Adafruit_PWMServoDriver.h"
 
 /* DualStepper */
 #include "DualStepper.h"
@@ -38,38 +42,6 @@
 #include <Servo.h>
 
 #include <EEPROM.h>
-
-
-/*
- * PINS
- */
-
-#define PEN_AXIS_PORT 1
-#define ROTATION_AXIS_PORT 2
-
-#define SERVO_PIN 9
-
-/*
- * Other Configuration
- */
-
-/* Pen servo gets clamped to these values. */
-#define MIN_PEN_POSITION 100
-#define MAX_PEN_POSITION 130
-
-/* Default pen up position. */
-#define PEN_UP_POSITION 107
-
-/* How long to take for pen down moves in ms. */
-#define PEN_DOWN_MOVE_TIME 200
-
-
-/* X axis gets clamped to these values to prevent inadvertent damage. */
-#define MIN_PEN_AXIS_STEP -480
-#define MAX_PEN_AXIS_STEP 480
-
-/* Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
-#define DEFAULT_ZOOM_FACTOR 1.0
 
 enum {
   VALUES_SAVED_EEPROM_LOCATION, MIN_PEN_EEPROM_LOCATION, MAX_PEN_EEPROM_LOCATION, PEN_UP_EEPROM_LOCATION
@@ -85,10 +57,15 @@ byte current_pen_position;
 /* --------- */
 
 /* Set up steppers */
+#if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
+SingleStepper *xStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
+SingleStepper *yStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
+#else
 Adafruit_MotorShield MS = Adafruit_MotorShield();
-SingleStepper *xStepper = new SingleStepper(MS.getStepper(200, ROTATION_AXIS_PORT));
-SingleStepper *yStepper = new SingleStepper(MS.getStepper(200, PEN_AXIS_PORT));
-DualStepper *steppers = new DualStepper(xStepper, yStepper, 200 * MICROSTEPS);
+SingleStepper *xStepper = new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
+SingleStepper *yStepper = new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
+#endif
+DualStepper *steppers = new DualStepper(xStepper, yStepper, STEPS_PER_REVOLUTION * MICROSTEPS);
 
 Servo servo;
 
@@ -105,9 +82,6 @@ boolean comment_mode = false;
 boolean absoluteMode = true;
 double feedrate = 160.0; // steps/s
 double zoom = DEFAULT_ZOOM_FACTOR;
-
-// steps/s. A no-delay loop takes 1.29 ms per step, so this is the fastest we can go.
-#define MAX_FEEDRATE 775.0
 
 // ------
 
@@ -164,8 +138,10 @@ void setup()
   Serial.begin(115200);
   clear_buffer();
 
+#if ADAFRUIT_MOTOR_SHIELD_VERSION == 2
   MS.begin();
   TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
+#endif
   Serial.println("Ready");
 
   steppers->setMaxSpeed(MAX_FEEDRATE);
@@ -381,7 +357,16 @@ void process_commands(char command[], int command_length) // deals with standard
 	break;
       }
     }
-
+  else if (command_length>0 && command[0] == 'N') // N code
+    {
+      // skip line number
+      int i = 1;
+      while (i<command_length && command[i]!=' ') ++i;
+      if (i<command_length-1) {
+        process_commands(command+i+1, command_length-i-1);
+        return;
+      }
+    }
   // done processing commands
   if (Serial.available() <= 0) {
     Serial.print("ok:");

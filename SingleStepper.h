@@ -18,11 +18,12 @@
 #ifndef SingleStepper_h
 #define SingleStepper_h
 
-#include <Adafruit_MotorShield.h>
+#include "Configuration.h"
 
 class SingleStepper {
  public:
-  SingleStepper(Adafruit_StepperMotor *sm);
+  SingleStepper(ADAFRUIT_CLASS *sm);
+
   void step(uint8_t dir);
   void release() { stepper->release(); }
 
@@ -30,7 +31,7 @@ class SingleStepper {
   int targetPos;
 
  protected:
-  Adafruit_StepperMotor *stepper;
+  ADAFRUIT_CLASS *stepper;
 };
 
 #endif

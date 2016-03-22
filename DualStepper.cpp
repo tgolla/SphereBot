@@ -114,15 +114,18 @@ DualStepper::moveTo(int ax, int ay, float speed)
 void
 DualStepper::plotLine(SingleStepper *xAxis, SingleStepper *yAxis, uint8_t xdir, uint8_t ydir, unsigned int dx, unsigned int dy)
 {
-  unsigned long usPerStep = 1000000L / majorAxisSpeed;
+  // usDelay is the nominal number of microseconds each step should take.
+  unsigned long usDelay = 1000000L / majorAxisSpeed;
+  // usPerStep is the actual number of microseconds to wait accounting for the time it takes to make the steps.
+  unsigned long usPerStep;
+
+  if (usDelay >= ONE_STEP_TIME)
+    usDelay -= ONE_STEP_TIME; // bake in a single x-axis step time
+  else
+    usDelay = 0; // clamp to zero so we don't get underflow
 
   // Serial.print("delay: ");
-  // Serial.println(usPerStep);
-
-  if (usPerStep >= 1290)
-    usPerStep = usPerStep - 1290; // loop takes 1.29 ms without any delay.
-  else
-    usPerStep = 0;
+  // Serial.println(usDelay);
 
   int error = 2 * dy - dx;
 
@@ -134,12 +137,15 @@ DualStepper::plotLine(SingleStepper *xAxis, SingleStepper *yAxis, uint8_t xdir, 
     xAxis->step(xdir);
     if (error > 0) {
       yAxis->step(ydir);
+      // Take off another step delay from the wait time.
+      usPerStep = (usDelay >= ONE_STEP_TIME) ? usDelay - ONE_STEP_TIME : 0;
       error += 2 * dy - 2 * dx;
     } else {
+      usPerStep = usDelay;
       error += 2 * dy;
     }
-    if (usPerStep > 0)
-      delayMicroseconds(usPerStep);
+
+    delayMicroseconds(usPerStep);
   }
 
   // unsigned long endTime = millis();
