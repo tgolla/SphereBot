@@ -357,7 +357,16 @@ void process_commands(char command[], int command_length) // deals with standard
 	break;
       }
     }
-
+  else if (command_length>0 && command[0] == 'N') // N code
+    {
+      // skip line number
+      int i = 1;
+      while (i<command_length && command[i]!=' ') ++i;
+      if (i<command_length-1) {
+        process_commands(command+i+1, command_length-i-1);
+        return;
+      }
+    }
   // done processing commands
   if (Serial.available() <= 0) {
     Serial.print("ok:");
