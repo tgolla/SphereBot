@@ -142,7 +142,7 @@ void setup()
   MS.begin();
   TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
 #endif
-  Serial.println("EggBot Ready");
+  Serial.println("Ready");
 
   steppers->setMaxSpeed(MAX_FEEDRATE);
     
