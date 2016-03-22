@@ -23,8 +23,8 @@
 * Version of Adafruit motor shield used
 */
 
-#define ADAFRUIT_MOTOR_SHIELD_VERSION 1
-//#define ADAFRUIT_MOTOR_SHIELD_VERSION 2
+//#define ADAFRUIT_MOTOR_SHIELD_VERSION 1
+#define ADAFRUIT_MOTOR_SHIELD_VERSION 2
 
 
 /*
@@ -40,7 +40,7 @@
 #define SERVO_PIN             10
 
 /*
-* Steppers Congiguration
+* Steppers Configuration
 */
 
 /* Full steps per revolution. Well known NEMA17 1.8 degrees motors have 200 steps. */
