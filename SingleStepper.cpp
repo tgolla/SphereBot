@@ -17,7 +17,7 @@
 
 #include "SingleStepper.h"
 
-SingleStepper::SingleStepper(Adafruit_StepperMotor *sm)
+SingleStepper::SingleStepper(ADAFRUIT_CLASS *sm)
 {
   stepper = sm;
   pos = 0;
