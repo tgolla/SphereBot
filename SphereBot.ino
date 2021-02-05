@@ -113,19 +113,28 @@ void clear_pen_configuration() {
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, 0xff);
 }
 
+// Corrects servo value if servo has been install reversed.  
+// Set REVERSE_SERVO in Configuration.h 
+void servoWrite(int value) {
+  if (REVERSE_SERVO)
+    value = 180 - value;
+
+  servo.write(value);
+}
+
 void move_pen(byte pos) {
   if (pos > current_pen_position) {
     // ease it down
     int pen_delay = PEN_DOWN_MOVE_TIME / 10;
     float pen_increment = (pos - current_pen_position) / 10.0;
     for (int i = 1; i < 10; i++) { // loop takes it to one step less than full travel
-      servo.write(current_pen_position + pen_increment * i);
+      servoWrite(current_pen_position + pen_increment * i);
       delay(pen_delay);
     }
-    servo.write(pos); // Finish off exactly; no round off errors.
+    servoWrite(pos); // Finish off exactly; no round off errors.
   } else {
     // slam it up
-    servo.write(pos);
+    servoWrite(pos);
   }
 
   current_pen_position = pos;
@@ -147,7 +156,7 @@ void setup()
   steppers->setMaxSpeed(MAX_FEEDRATE);
     
   servo.attach(SERVO_PIN);
-  servo.write(pen_up_position);
+  servoWrite(pen_up_position);
   current_pen_position = pen_up_position;
 
   delay(100);
