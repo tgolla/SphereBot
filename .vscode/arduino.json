@@ -1,0 +1,5 @@
+{
+    "sketch": "SphereBot.ino",
+    "board": "arduino:avr:uno",
+    "port": "COM4"
+}
