@@ -37,7 +37,8 @@
 #define PEN_AXIS_PORT         1
 #define ROTATION_AXIS_PORT    2
 
-#define SERVO_PIN             10
+#define SERVO_PIN             6
+#define REVERSE_SERVO         true
 
 /*
 * Steppers Configuration
@@ -55,10 +56,10 @@
 
 /* Pen servo gets clamped to these values. */
 #define MIN_PEN_POSITION      100
-#define MAX_PEN_POSITION      130
+#define MAX_PEN_POSITION      160
 
 /* Default pen up position. */
-#define PEN_UP_POSITION       107
+#define PEN_UP_POSITION       145
 
 /* How long to take for pen down moves in ms. */
 #define PEN_DOWN_MOVE_TIME    200
