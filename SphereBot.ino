@@ -17,19 +17,34 @@
  * Part of this code is based on/inspired by the Helium Frog Delta Robot Firmware
  * by Martin Price <http://www.HeliumFrog.com>
  *
- * Updated to run on Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>.
- * Utated to support both versions of Adafruit motor shield by GrAndAG
+ * 2015-2016 the code was modified to run on an Adafruit Motor Shield V2 by Jin Choi <jsc@alum.mit.edu>.
+ * 2016 code support for the Adafruit Motor Shield V1 was added by GrAndAG.
+ * 
+ * 2/2021 the code was modified with the following improvements by Terence Golla (tgolla).
+ *  
+ *   - Corrected the naming convention mix of snake_case and camelCase for more prominent C/C++ Arduino 
+ *     software use of camelCase.
+ * 
+ *   - Restructured the ino software file to follow Arduino styling...
+ *       - Begin with a set of comments clearly describing the purpose and assumptions of the code.
+ *       - Import any required library headers.
+ *       - Define constants.
+ *       - Define global variables.
+ *       - Define setup() and loop().
+ *       - Define subroutines (functions).
+ * 
+ *   - Expanded in code documentation (comments).
  *
- * !!!!!!!!
+ *   - Modified code to operate servo installed in reverse.
+ * 
  * This sketch needs the following non-standard library (install it in the Arduino library directory):
-
- * Adafruit Motor Shield:
- *         v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
- *         v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
  *
- * Also tune your configuration in "Configuration.h" file.
+ * Adafruit Motor Shield (select appropriate version ):
+ *   v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
+ *   v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
  *
- * !!!!!!!!
+ * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file.
+ *
  */
 
 #include "Configuration.h"
@@ -43,6 +58,7 @@
 
 #include <EEPROM.h>
 
+// Enum used to assign EEPROM memory locations for pen setting.  i.e. 0, 1, 2, 3
 enum
 {
   VALUES_SAVED_EEPROM_LOCATION,
@@ -51,16 +67,15 @@ enum
   PEN_UP_EEPROM_LOCATION
 };
 
+// Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
 #define EEPROM_MAGIC_NUMBER 53
 
-byte min_pen_position;
-byte max_pen_position;
-byte pen_up_position;
-byte current_pen_position;
+byte minPenPosition;
+byte maxPenPosition;
+byte penUpPosition;
+byte currentPenPosition;
 
-/* --------- */
-
-/* Set up steppers */
+// Set up stepper motors and servo.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
 SingleStepper *xStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
 SingleStepper *yStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
@@ -69,56 +84,81 @@ Adafruit_MotorShield MS = Adafruit_MotorShield();
 SingleStepper *xStepper = new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
 SingleStepper *yStepper = new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
 #endif
+
 DualStepper *steppers = new DualStepper(xStepper, yStepper, STEPS_PER_REVOLUTION *MICROSTEPS);
 
 Servo servo;
 
-// comm variables
-const int MAX_CMD_SIZE = 256;
-char buffer[MAX_CMD_SIZE]; // buffer for serial commands
-char serial_char;          // value for each byte read in from serial comms
-int serial_count = 0;      // current length of command
-char *strchr_pointer;      // just a pointer to find chars in the cmd string like X, Y, Z, E, etc
-boolean comment_mode = false;
-// end comm variables
+// Serial communication variables.
+const int MAX_CMD_SIZE = 256; // Maximun buffer size.
+char buffer[MAX_CMD_SIZE]; // Buffer for serial commands.
+char serialChar; // Value for each byte read in from serial port.
+int serialCount = 0; // Current length of command.
+char *strCharPointer; // Just a pointer to find chars in the command string like X, Y, Z, E, etc.
+boolean commentMode = false; // Flag indicating comment.
 
-// GCode States
+// GCode states.
 boolean absoluteMode = true;
-double feedrate = 160.0; // steps/s
+double feedrate = 160.0; // steps/second
 double zoom = DEFAULT_ZOOM_FACTOR;
 
-// ------
-
-void load_pen_configuration()
+void setup()
 {
-  // Check EEPROM location 0 for presence of a magic number. If it's there, we have saved values.
+  loadPenConfiguration();
+  Serial.begin(115200);
+  clearBuffer();
+
+#if ADAFRUIT_MOTOR_SHIELD_VERSION == 2
+  MS.begin();
+  TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
+#endif
+  Serial.println("Ready");
+
+  steppers->setMaxSpeed(MAX_FEEDRATE);
+
+  servo.attach(SERVO_PIN);
+  servoWrite(penUpPosition);
+  currentPenPosition = penUpPosition;
+
+  delay(100);
+}
+
+// Input loop, looks for manual input and then checks to see if and serial commands are coming in.
+void loop() 
+{
+  getCommand(); // Check for Gcodes.
+}
+
+void loadPenConfiguration()
+{
+  // Check EEPROM location 0 for presence of a magic number. If it's there, we have saved pen settings.
   if (EEPROM.read(VALUES_SAVED_EEPROM_LOCATION) == EEPROM_MAGIC_NUMBER)
   {
-    min_pen_position = EEPROM.read(MIN_PEN_EEPROM_LOCATION);
-    max_pen_position = EEPROM.read(MAX_PEN_EEPROM_LOCATION);
-    pen_up_position = EEPROM.read(PEN_UP_EEPROM_LOCATION);
+    minPenPosition = EEPROM.read(MIN_PEN_EEPROM_LOCATION);
+    maxPenPosition = EEPROM.read(MAX_PEN_EEPROM_LOCATION);
+    penUpPosition = EEPROM.read(PEN_UP_EEPROM_LOCATION);
   }
   else
   {
-    min_pen_position = MIN_PEN_POSITION;
-    max_pen_position = MAX_PEN_POSITION;
-    pen_up_position = PEN_UP_POSITION;
+    minPenPosition = MIN_PEN_POSITION;
+    maxPenPosition = MAX_PEN_POSITION;
+    penUpPosition = PEN_UP_POSITION;
   }
 }
 
-void save_pen_configuration()
+void savePenConfiguration()
 {
-  EEPROM.update(MIN_PEN_EEPROM_LOCATION, min_pen_position);
-  EEPROM.update(MAX_PEN_EEPROM_LOCATION, max_pen_position);
-  EEPROM.update(PEN_UP_EEPROM_LOCATION, pen_up_position);
+  EEPROM.update(MIN_PEN_EEPROM_LOCATION, minPenPosition);
+  EEPROM.update(MAX_PEN_EEPROM_LOCATION, maxPenPosition);
+  EEPROM.update(PEN_UP_EEPROM_LOCATION, penUpPosition);
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, EEPROM_MAGIC_NUMBER);
 }
 
-void clear_pen_configuration()
+void clearPenConfiguration()
 {
-  min_pen_position = MIN_PEN_POSITION;
-  max_pen_position = MAX_PEN_POSITION;
-  pen_up_position = PEN_UP_POSITION;
+  minPenPosition = MIN_PEN_POSITION;
+  maxPenPosition = MAX_PEN_POSITION;
+  penUpPosition = PEN_UP_POSITION;
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, 0xff);
 }
 
@@ -132,82 +172,76 @@ void servoWrite(int value)
   servo.write(value);
 }
 
-void move_pen(byte pos)
+// Moves the pen (servo) position. Gently if down and quickly if up.
+// Zero is the maximun down position and 180 is the maximun up position.
+void movePen(byte toPosition)
 {
-  if (pos > current_pen_position)
+  if (toPosition > currentPenPosition)
   {
-    // ease it down
-    int pen_delay = PEN_DOWN_MOVE_TIME / 10;
-    float pen_increment = (pos - current_pen_position) / 10.0;
+    // Ease it down.
+    int penDelay = PEN_DOWN_MOVE_TIME / 10;
+    float penIncrement = (toPosition - currentPenPosition) / 10.0;
+
+    // Loop takes it to one step less than full travel.
     for (int i = 1; i < 10; i++)
-    { // loop takes it to one step less than full travel
-      servoWrite(current_pen_position + pen_increment * i);
-      delay(pen_delay);
+    { 
+      servoWrite(currentPenPosition + penIncrement * i);
+      delay(penDelay);
     }
-    servoWrite(pos); // Finish off exactly; no round off errors.
+
+    // Finish off exactly with no round off errors.
+    servoWrite(toPosition); 
   }
   else
   {
-    // slam it up
-    servoWrite(pos);
+    // Slam it up.
+    servoWrite(toPosition);
   }
 
-  current_pen_position = pos;
+  currentPenPosition = toPosition;
 }
 
-void setup()
+// Gets a commands from the serial connection and processes it.
+void getCommand() 
 {
-  load_pen_configuration();
-  Serial.begin(115200);
-  clear_buffer();
-
-#if ADAFRUIT_MOTOR_SHIELD_VERSION == 2
-  MS.begin();
-  TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
-#endif
-  Serial.println("Ready");
-
-  steppers->setMaxSpeed(MAX_FEEDRATE);
-
-  servo.attach(SERVO_PIN);
-  servoWrite(pen_up_position);
-  current_pen_position = pen_up_position;
-
-  delay(100);
-}
-
-void loop() // input loop, looks for manual input and then checks to see if and serial commands are coming in
-{
-  get_command(); // check for Gcodes
-}
-
-void get_command() // gets commands from serial connection and then calls up subsequent functions to deal with them
-{
-  if (Serial.available() > 0) // each time we see something
+  // Each time we see something on the serial port.
+  if (Serial.available() > 0) 
   {
-    serial_char = Serial.read(); // read individual byte from serial connection
+    // Read individual byte from serial port.
+    serialChar = Serial.read(); 
+    
+    if (serialChar == '\n' || serialChar == '\r') 
+    {
+      // If it is an end of a command character, process the command. 
+      buffer[serialCount] = 0;
+      processCommand(buffer, serialCount);
 
-    if (serial_char == '\n' || serial_char == '\r') // end of a command character
-    {
-      buffer[serial_count] = 0;
-      process_commands(buffer, serial_count);
-      clear_buffer();
-      comment_mode = false; // reset comment mode before each new command is processed
+      clearBuffer();
+
+      // Reset comment mode before each new command is processed.
+      commentMode = false; 
     }
-    else // not end of command
+    else 
     {
-      if (serial_char == ';' || serial_char == '(') // semicolon signifies start of comment
+      // If it's not the end of command look for the start of a comment.
+      // TODO: Bug assuming that comments in braces end the line.
+      if (serialChar == ';' || serialChar == '(')
       {
-        comment_mode = true;
+        commentMode = true;
       }
 
-      if (comment_mode != true) // ignore if a comment has started
+      // If not a comment add to buffer.
+      if (commentMode != true) 
       {
-        buffer[serial_count] = serial_char; // add byte to buffer string
-        serial_count++;
-        if (serial_count > MAX_CMD_SIZE) // overflow, dump and restart
+        // Add byte to buffer string.
+        buffer[serialCount] = serialChar; 
+        serialCount++;
+
+        // Deal with buffer overflow by clearing the buffer and restarting. 
+        // TODO: Look at other possible solutions.
+        if (serialCount > MAX_CMD_SIZE) 
         {
-          clear_buffer();
+          clearBuffer();
           Serial.flush();
         }
       }
@@ -215,31 +249,35 @@ void get_command() // gets commands from serial connection and then calls up sub
   }
 }
 
-void clear_buffer() // empties command buffer from serial connection
+// Empties command buffer from serial connection.
+void clearBuffer() 
 {
-  serial_count = 0; // reset buffer placement
+  serialCount = 0;
 }
 
 boolean getValue(char key, char command[], double *value)
 {
-  // find key parameter
-  strchr_pointer = strchr(buffer, key);
-  if (strchr_pointer != NULL) // We found a key value
+  // Find key parameter
+  strCharPointer = strchr(buffer, key);
+
+  if (strCharPointer != NULL) // We found a key value
   {
-    *value = (double)strtod(&command[strchr_pointer - command + 1], NULL);
+    *value = (double)strtod(&command[strCharPointer - command + 1], NULL);
     return true;
   }
   return false;
 }
 
-inline double clamp(double x, double a, double b)
+// Clamps a value between an lower and upper bound.
+inline double clamp(double value, double minValue, double maxValue)
 {
-  return x < a ? a : (x > b ? b : x);
+  return value < minValue ? minValue : (value > maxValue ? maxValue : value);
 }
 
-void process_commands(char command[], int command_length) // deals with standardized input from serial connection
+// Deals with standardized input from serial connection.
+void processCommand(char command[], int commandLength) 
 {
-  if (command_length > 0 && command[0] == 'G') // G code
+  if (commandLength > 0 && command[0] == 'G') // G-codes
   {
     int codenum = (int)strtod(&command[1], NULL);
 
@@ -290,13 +328,13 @@ void process_commands(char command[], int command_length) // deals with standard
 
     switch (codenum)
     {
-    case 0: // G0, Rapid positioning
+    case 0: // G0, Rapid positioning.
       steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
       break;
-    case 1: // G1, linear interpolation at specified speed
-      if (current_pen_position <= pen_up_position)
+    case 1: // G1, linear interpolation at specified speed.
+      if (currentPenPosition <= penUpPosition)
       {
-        // potentially wrap around the sphere if pen is up
+        // Potentially wrap around the sphere if pen is up.
         steppers->travelTo(tempX, tempY, feedrate);
       }
       else
@@ -304,8 +342,8 @@ void process_commands(char command[], int command_length) // deals with standard
         steppers->moveTo(tempX, tempY, feedrate);
       }
       break;
-    case 2: // G2, Clockwise arc
-    case 3: // G3, Counterclockwise arc
+    case 2: // G2, Clockwise arc.
+    case 3: // G3, Counterclockwise arc.
       if (hasIVal && hasJVal)
       {
         double centerX = steppers->xPos() + iVal;
@@ -317,63 +355,63 @@ void process_commands(char command[], int command_length) // deals with standard
         //drawRadius(tempX, tempY, rVal, (codenum==2));
       }
       break;
-    case 4: // G4, Delay P ms
+    case 4: // G4, Delay P ms.
       if (hasPVal)
       {
         delay(pVal);
       }
       break;
-    case 90: // G90, Absolute Positioning
+    case 90: // G90, Absolute Positioning.
       absoluteMode = true;
       break;
-    case 91: // G91, Incremental Positioning
+    case 91: // G91, Incremental Positioning.
       absoluteMode = false;
       break;
     }
   }
-  else if (command_length > 0 && command[0] == 'M') // M code
+  else if (commandLength > 0 && command[0] == 'M') // M-codes
   {
     double value;
     int codenum = (int)strtod(&command[1], NULL);
     switch (codenum)
     {
-    case 18: // Disable Drives
+    case 18: // Disable Drives.
       xStepper->release();
       yStepper->release();
       break;
 
-    case 300: // Servo Position
+    case 300: // Servo Position.
       if (getValue('S', command, &value))
       {
         if (value > 180)
-          value = pen_up_position;
-        value = clamp(value, min_pen_position, max_pen_position);
-        move_pen(value);
+          value = penUpPosition;
+        value = clamp(value, minPenPosition, maxPenPosition);
+        movePen(value);
       }
       break;
 
     case 301: // Set min pen position.
       if (getValue('P', command, &value))
       {
-        min_pen_position = value;
+        minPenPosition = value;
       }
       break;
 
     case 302: // Set max pen position.
       if (getValue('P', command, &value))
       {
-        max_pen_position = value;
+        maxPenPosition = value;
       }
       break;
 
-    case 303: // set default pen up position.
+    case 303: // Set default pen up position.
       if (getValue('P', command, &value))
       {
-        pen_up_position = value;
+        penUpPosition = value;
       }
       break;
 
-    case 402: // Propretary: Set global zoom factor
+    case 402: // Propretary: Set global zoom factor.
       if (getValue('S', command, &value))
       {
         zoom = value;
@@ -381,31 +419,32 @@ void process_commands(char command[], int command_length) // deals with standard
       break;
 
     case 500:
-      save_pen_configuration();
+      savePenConfiguration();
       break;
 
     case 501:
-      load_pen_configuration();
+      loadPenConfiguration();
       break;
 
     case 502:
-      clear_pen_configuration();
+      clearPenConfiguration();
       break;
     }
   }
-  else if (command_length > 0 && command[0] == 'N') // N code
+  else if (commandLength > 0 && command[0] == 'N') // N-codes
   {
-    // skip line number
+    // Skip line number.
     int i = 1;
-    while (i < command_length && command[i] != ' ')
+    while (i < commandLength && command[i] != ' ')
       ++i;
-    if (i < command_length - 1)
+    if (i < commandLength - 1)
     {
-      process_commands(command + i + 1, command_length - i - 1);
+      processCommand(command + i + 1, commandLength - i - 1);
       return;
     }
   }
-  // done processing commands
+
+  // Done processing commands.
   if (Serial.available() <= 0)
   {
     Serial.print("ok:");
@@ -416,20 +455,20 @@ void process_commands(char command[], int command_length) // deals with standard
 /* This code was ported from the Makerbot/ReplicatorG java sources */
 void drawArc(double centerX, double centerY, double endpointX, double endpointY, boolean clockwise)
 {
-  // angle variables.
+  // Angle variables.
   double angleA;
   double angleB;
   double angle;
   double radius;
   double length;
 
-  // delta variables.
+  // Delta variables.
   double aX;
   double aY;
   double bX;
   double bY;
 
-  // figure out our deltas
+  // Figure out our deltas.
   double currentX = steppers->xPos();
   double currentY = steppers->yPos();
   aX = currentX - centerX;
@@ -453,16 +492,16 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
   // Make sure angleB is always greater than angleA
   // and if not add 2PI so that it is (this also takes
   // care of the special case of angleA == angleB,
-  // ie we want a complete circle)
+  // i.e. we want a complete circle)
   if (angleB <= angleA)
     angleB += 2. * M_PI;
   angle = angleB - angleA;
 
-  // calculate a couple useful things.
+  // Calculate a couple useful things.
   radius = sqrt(aX * aX + aY * aY);
   length = radius * angle;
 
-  // for doing the actual move.
+  // For doing the actual move.
   int steps;
   int s;
   int step;
@@ -477,17 +516,17 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
 
   for (s = 1; s <= steps; s++)
   {
-    // Forwards for CCW, backwards for CW
+    // Forwards for CCW, backwards for CW.
     if (!clockwise)
       step = s;
     else
       step = steps - s;
 
-    // calculate our waypoint.
+    // Calculate our waypoint.
     newPointX = centerX + radius * cos(angleA + angle * ((double)step / steps));
     newPointY = centerY + radius * sin(angleA + angle * ((double)step / steps));
 
-    // start the move
+    // Start the move.
     steppers->moveTo(newPointX, newPointY, feedrate);
   }
 }
