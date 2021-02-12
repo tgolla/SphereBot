@@ -238,8 +238,7 @@ void getCommand()
         serialCount++;
 
         // Deal with buffer overflow by clearing the buffer and restarting. 
-        // TODO: Look at other possible solutions.
-        if (serialCount > MAX_CMD_SIZE) 
+          if (serialCount > MAX_CMD_SIZE) 
         {
           clearBuffer();
           Serial.flush();
