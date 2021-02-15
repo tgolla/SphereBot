@@ -15,7 +15,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include <string>
 #ifndef GCodeParser_h
 #define GCodeParser_h
 
@@ -32,7 +31,7 @@ private:
 	int commentCharCount;
 
 	void Initialize();
-	int FindWordInCodeBlock(char c);
+	int FindWordInCodeBlock(char letter);
 public:
 	char line[MAX_LINE_SIZE + 1];
 	char codeBlock[MAX_LINE_SIZE + 1];
@@ -41,8 +40,10 @@ public:
 	GCodeParser();
 	bool AddCharToLine(char c);
 
-	bool HasWord(char c);
-	bool IsWord(char c);
+	bool HasWord(char letter);
+	bool IsWord(char letter);
+
+	double GetWordValue(char letter);
 };
 
 #endif

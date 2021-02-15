@@ -9,28 +9,34 @@ namespace GCodeParserUnitTests
 	TEST_CLASS(GCodeParserUnitTests)
 	{
 	public:
+		int AddLine(GCodeParser *gcode, int startAt)
+		{
+			char lines[] = { 'G', '0', '1' , ' ', 'Z' , '0' , '.' , '0' , '\r', '\n', 
+				'M', '3', '0', '0', ' ', 'S', '1', '2', '5', '\n', '\0' };
+
+			bool completeLineIsAvailableToInterpret;
+			while (lines[startAt] != '\0')
+			{
+				completeLineIsAvailableToInterpret = gcode->AddCharToLine(lines[startAt]);
+				if (completeLineIsAvailableToInterpret)
+					break;
+
+				startAt++;
+			}
+
+			return startAt;
+		}
+
+
 		TEST_METHOD(AddCharToLine_AddLines_ConfirmLines)
 		{
 			GCodeParser GCode = GCodeParser();
 
-			char line[] = { 'G', '0', '1' , ' ', 'Z' , '0' , '.' , '0' , '\r', '\n', '\0' };
-
-			bool completeLineIsAvailableToInterpret;
-			int pointer = 0;
-			while (line[pointer] != '\0')
-			{
-				completeLineIsAvailableToInterpret = GCode.AddCharToLine(line[pointer]);
-				if (completeLineIsAvailableToInterpret)
-					break;
-
-				pointer++;
-			}
-
-			Assert::AreEqual(completeLineIsAvailableToInterpret, true);
+			int startAt = AddLine(&GCode, 0);
 
 			char resultLine[] = { 'G', '0', '1' , ' ', 'Z' , '0' , '.' , '0' };
 
-			pointer = 0;
+			int pointer = 0;
 			while (GCode.line[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.line[pointer], resultLine[pointer]);
@@ -38,17 +44,7 @@ namespace GCodeParserUnitTests
 				pointer++;
 			}
 
-			char line2[] = { 'M', '3', '0', '0', ' ', 'S' , '1' , '2' , '5' , '\n', '\0' };
-
-			pointer = 0;
-			while (line2[pointer] != '\0')
-			{
-				completeLineIsAvailableToInterpret = GCode.AddCharToLine(line2[pointer]);
-
-				pointer++;
-			}
-
-			Assert::AreEqual(completeLineIsAvailableToInterpret, true);
+			AddLine(&GCode, startAt);
 
 			char resultLine2[] = { 'M', '3', '0', '0', ' ', 'S' , '1' , '2' , '5' };
 
@@ -65,7 +61,17 @@ namespace GCodeParserUnitTests
 		{
 			GCodeParser GCode = GCodeParser();
 
-			Assert::Fail();
+			int startAt = AddLine(&GCode, 0);
+
+			char resultCodeBlock[] = { 'G', '0', '1' , 'Z' , '0' , '.' , '0' };
+
+			int pointer = 0;
+			while (GCode.line[pointer] != '\0')
+			{
+				Assert::AreEqual(GCode.codeBlock[pointer], resultCodeBlock[pointer]);
+
+				pointer++;
+			}
 		}
 
 		TEST_METHOD(AddCharToLine_AddLines_ConfirmComments)
@@ -100,15 +106,7 @@ namespace GCodeParserUnitTests
 		{
 			GCodeParser GCode = GCodeParser();
 
-			char line[] = { 'G', '0', '1' , ' ', 'Z' , '0' , '.' , '0' , '\r', '\n', '\0' };
-
-			int pointer = 0;
-			while (line[pointer] != '\0')
-			{
-				GCode.AddCharToLine(line[pointer]);
-
-				pointer++;
-			}
+			int startAt = AddLine(&GCode, 0);
 
 			Assert::AreEqual(GCode.HasWord('G'), true);
 		}
@@ -117,17 +115,18 @@ namespace GCodeParserUnitTests
 		{
 			GCodeParser GCode = GCodeParser();
 
-			char line[] = { 'G', '0', '1' , ' ', 'Z' , '0' , '.' , '0' , '\r', '\n', '\0' };
-
-			int pointer = 0;
-			while (line[pointer] != '\0')
-			{
-				GCode.AddCharToLine(line[pointer]);
-
-				pointer++;
-			}
+			int startAt = AddLine(&GCode, 0);
 
 			Assert::AreEqual(GCode.HasWord('M'), false);
+		}
+
+		TEST_METHOD(GetWordValue_ExistingWord_ReturnsValue)
+		{
+			GCodeParser GCode = GCodeParser();
+
+			int startAt = AddLine(&GCode, 0);
+
+			Assert::AreEqual((int)GCode.GetWordValue('G'), 1);
 		}
 	};
 }

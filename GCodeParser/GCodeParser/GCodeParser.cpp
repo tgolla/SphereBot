@@ -18,6 +18,7 @@
 
 
 #include "GCodeParser.h"
+#include <stdlib.h>
 
 /// <summary>
 /// Initialized class.
@@ -201,4 +202,19 @@ bool GCodeParser::IsWord(char letter)
 	}
 
 	return false;
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="letter"></param>
+/// <returns></returns>
+double GCodeParser::GetWordValue(char letter)
+{
+	int pointer = FindWordInCodeBlock(letter);
+
+	if (codeBlock[pointer] != '\0')
+		return (double)strtod(&codeBlock[pointer + 1], NULL);
+
+	return 0.0;
 }
