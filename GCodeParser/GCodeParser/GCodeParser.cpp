@@ -103,18 +103,23 @@ bool GCodeParser::AddCharToLine(char c)
 
 			codeBlock[codeBlockCharCount] = '\0';
 		}
+		else
+		{
+			Initialize();
+		}
 	}
 	else
 	{
+		if (completeLineIsAvailableToInterpret)
+			Initialize();
+
 		// Add character to line.
 		line[lineCharCount] = c;
 		lineCharCount++;
 
 		// Deal with buffer overflow by initializing. TODO: Need a better solution.  i.e. Throw error?
 		if (lineCharCount > MAX_LINE_SIZE)
-		{
 			Initialize();
-		}
 	}
 
 	lastChar = c; 
