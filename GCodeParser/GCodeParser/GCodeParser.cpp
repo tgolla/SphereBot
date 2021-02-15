@@ -27,26 +27,60 @@ void GCodeParser::Initialize()
 {
 	lineCharCount = 0;
 	line[lineCharCount] = '\0';
-	codeBlockCharCount = 0;
-	codeBlock[codeBlockCharCount] = '\0';
-	commentCharCount = 0;
-	comment[commentCharCount] = '\0';
 	completeLineIsAvailableToInterpret = false;
 }
 
 /// <summary>
-/// Looks for a word in the code block.
+/// Looks for a word in the line.
 /// </summary>
-/// <param name="c">The letter of the word to look for in the code block.</param>
+/// <param name="c">The letter of the word to look for in the line.</param>
 /// <returns>A pointer to where the word starts.  Points to \0 if the word was not found.</returns>
-int GCodeParser::FindWordInCodeBlock(char letter)
+int GCodeParser::FindWord(char letter)
 {
 	int pointer = 0;
-	while (codeBlock[pointer] != '\0')
-	{
-		if (letter == codeBlock[pointer])
+	bool openParentheseFound = false;
+	bool semicolonFound = false;
+	
+	while (line[pointer] != '\0')
+	{	
+		// Look for end of comment.
+		if (line[pointer] == '(')
+			openParentheseFound = true; // Open parenthese... start of comment.
+
+		if (line[pointer] == ';') 
+			semicolonFound = true; // Semicolon... start of comment to end of line.
+
+		// If we are not inside a comment.
+		if (!openParentheseFound && !semicolonFound)
 		{
-			return pointer;
+			// Look for the word.
+			if (letter == line[pointer])
+			{
+				return pointer;
+			}
+		}
+
+		// Look for end of comment.
+		if (line[pointer] == ')')
+		{
+			openParentheseFound = false;
+
+			// Is this the end of the comment? Scan forward for second closing parenthese, but no opening parenthese first.
+			int scanAheadPointer = pointer + 1;
+
+			while (line[scanAheadPointer] != '\0')
+			{
+				if (line[scanAheadPointer] == '(')
+					break;
+
+				if (line[scanAheadPointer] == ')')
+				{
+					openParentheseFound = true;
+					break;
+				}
+
+				scanAheadPointer++;
+			}
 		}
 
 		pointer++;
@@ -89,20 +123,7 @@ bool GCodeParser::AddCharToLine(char c)
 			line[lineCharCount] = '\0';
 			completeLineIsAvailableToInterpret = true;
 
-			//TODO: Remove comments and compact code block.
-			int pointer = 0;
-			while (line[pointer] != '\0')
-			{
-				if (line[pointer] != ' ')
-				{
-					codeBlock[codeBlockCharCount] = line[pointer];
-					codeBlockCharCount++;
-				}
-
-				pointer++;
-			}
-
-			codeBlock[codeBlockCharCount] = '\0';
+			//TODO: Compact line by removing spaces not inside comments.
 		}
 		else
 		{
@@ -137,9 +158,9 @@ bool GCodeParser::HasWord(char letter)
 {
 	if (IsWord(letter))
 	{
-		int pointer = FindWordInCodeBlock(letter);
+		int pointer = FindWord(letter);
 
-		if (codeBlock[pointer] == '\0')
+		if (line[pointer] == '\0')
 		{
 			return false;
 		}
@@ -211,10 +232,10 @@ bool GCodeParser::IsWord(char letter)
 /// <returns></returns>
 double GCodeParser::GetWordValue(char letter)
 {
-	int pointer = FindWordInCodeBlock(letter);
+	int pointer = FindWord(letter);
 
-	if (codeBlock[pointer] != '\0')
-		return (double)strtod(&codeBlock[pointer + 1], NULL);
+	if (line[pointer] != '\0')
+		return (double)strtod(&line[pointer + 1], NULL);
 
 	return 0.0;
 }

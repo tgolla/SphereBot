@@ -27,15 +27,11 @@ private:
 	bool completeLineIsAvailableToInterpret;
 
 	int lineCharCount;
-	int codeBlockCharCount;
-	int commentCharCount;
 
 	void Initialize();
-	int FindWordInCodeBlock(char letter);
+	int FindWord(char letter);
 public:
 	char line[MAX_LINE_SIZE + 1];
-	char codeBlock[MAX_LINE_SIZE + 1];
-	char comment[MAX_LINE_SIZE + 1];
 
 	GCodeParser();
 	bool AddCharToLine(char c);
