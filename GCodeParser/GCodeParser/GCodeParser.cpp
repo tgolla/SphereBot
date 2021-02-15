@@ -27,6 +27,7 @@ void GCodeParser::Initialize()
 {
 	lineCharCount = 0;
 	line[lineCharCount] = '\0';
+	blockDelete = false;
 	completeLineIsAvailableToInterpret = false;
 }
 
@@ -90,6 +91,27 @@ int GCodeParser::FindWord(char letter)
 }
 
 /// <summary>
+/// Removes a character from the code block (not comments). 
+/// </summary>
+/// <param name="c">The character to remove.</param>
+void GCodeParser::RemoveCharacter(char c)
+{
+	int pointer = FindWord(c);
+
+	while (line[pointer] != '\0')
+	{
+		while (line[pointer] != '\0')
+		{
+			line[pointer] = line[pointer + 1];
+
+			pointer++;
+		}
+
+		pointer = FindWord(c);
+	}
+}
+
+/// <summary>
 /// Class constructor.
 /// </summary>
 /// <remark>
@@ -123,7 +145,15 @@ bool GCodeParser::AddCharToLine(char c)
 			line[lineCharCount] = '\0';
 			completeLineIsAvailableToInterpret = true;
 
-			//TODO: Compact line by removing spaces not inside comments.
+			// Spaces and tabs are allowed anywhere on a line of code and do not change the meaning of 
+			// the line, except inside comments. Remove spaces and tabs except in comments. 
+			RemoveCharacter(' ');
+			RemoveCharacter('\t');
+
+			// The optional block delete character the slash '/' when placed first on a line can be used
+			// by some user interfaces to skip lines of code when needed.
+			if (line[0] == '/')
+				blockDelete = true;
 		}
 		else
 		{

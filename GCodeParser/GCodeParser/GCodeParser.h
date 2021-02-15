@@ -30,8 +30,10 @@ private:
 
 	void Initialize();
 	int FindWord(char letter);
+	void RemoveCharacter(char c);
 public:
 	char line[MAX_LINE_SIZE + 1];
+	bool blockDelete;
 
 	GCodeParser();
 	bool AddCharToLine(char c);
