@@ -16,13 +16,12 @@
  *
  */
 
-
 #include "GCodeParser.h"
 #include <stdlib.h>
 #include <string.h>
 
  /// <summary>
- /// Initialized class.
+ /// Initializizes class.
  /// </summary>
 void GCodeParser::Initialize()
 {
@@ -38,8 +37,8 @@ void GCodeParser::Initialize()
 /// </summary>
 /// <remark>
 /// The G Code language is based on the RS274/NGC language. The G Code 
-/// language is based on lines of code.Each line(also called a 'block')
-/// may include commands to do several different things.Lines of code
+/// language is based on lines of code. Each line (also called a 'block')
+/// may include commands to do several different things. Lines of code
 /// may be collected in a file to make a program.
 /// </remark>
 GCodeParser::GCodeParser()
@@ -50,10 +49,11 @@ GCodeParser::GCodeParser()
 }
 
 /// <summary>
-/// Adds 
+/// Adds a character to the line to be parsed.
 /// </summary>
 /// <param name="letter">The character to add.</param>
-/// <returns>True if a complete line is available to interpret.</returns>
+/// <returns>True if a complete line is available to parse.</returns>
+/// <remarks>Adding a character after a CR/LF or LF have been added will reset the line buffer.</remarks>
 bool GCodeParser::AddCharToLine(char c)
 {
 	// Look for end of line. CRLF or just LF.
@@ -69,11 +69,13 @@ bool GCodeParser::AddCharToLine(char c)
 		}
 		else
 		{
+			// Reset the line buffer and start a new line.
 			Initialize();
 		}
 	}
 	else
 	{
+		// Determine is a new line is being added.
 		if (completeLineIsAvailableToParse)
 			Initialize();
 
@@ -115,7 +117,7 @@ void GCodeParser::ParseLine()
 		if (c == ';')
 			semicolonFound = true; // Semicolon... start of comment to end of line.
 
-		// If we are inside a comment, we need to move it.
+		// If we are inside a comment, we need to move it to the end of the buffer in order to seperate it.
 		if (openParentheseFound || semicolonFound)
 		{
 			// Shift line left.
@@ -170,6 +172,7 @@ void GCodeParser::ParseLine()
 		}
 	}
 
+	// Set pointer to comments.
 	comments = line + strlen(line) + correctCommentsPointerBy + 1;
 
 	// The optional block delete character the slash '/' when placed first on a line can be used
@@ -230,11 +233,11 @@ bool GCodeParser::HasWord(char letter)
 /// <returns>True if the letter represents a valid word. </returns>
 /// <remark>
 /// Words may begin with any of the letters shown in the following
-/// Table. The table includes N for completeness, even though, line 
-/// numbers are not words. Several letters (I, J, K, L, P, R) may 
-/// have different meanings in different contexts. Letters which 
-/// refer to axis names are not valid on a machine which does not 
-/// have the corresponding axis.
+/// Table. The table includes N, @ and ^ for completeness, even though,
+/// line numbers and polar coordinates are not words. Several letters 
+/// (I, J, K, L, P, R) may have different meanings in different contexts.
+/// Letters which refer to axis names are not valid on a machine which
+/// does not have the corresponding axis.
 /// 
 /// A - A axis of machine.
 /// B - B axis of machine.
@@ -248,7 +251,7 @@ bool GCodeParser::HasWord(char letter)
 /// K - Z offset for arcsand G87 canned cycles. Spindle - Motion Ratio for G33 synchronized movements.
 /// L - generic parameter word for G10, M66and others.
 /// M - Miscellaneous function(See table Modal Groups).
-/// N - Line number.
+/// N - Line number. Line numbers are not considered words.
 /// P - Dwell time in canned cyclesand with G4. Key used with G10.
 /// Q - Feed increment in G73, G83 canned cycles.
 /// R - Arc radius or canned cycle plane.
@@ -260,7 +263,9 @@ bool GCodeParser::HasWord(char letter)
 /// X - X axis of machine.
 /// Y - Y axis of machine.
 /// Z - Z axis of machine
-/// </remark>
+/// @ - Polar coordinate for the distance. Polar coordinates are not considered words.
+/// ^ - Polar coordinate for the angle. Polar coordinates are not considered words.
+/// /// </remark>
 bool GCodeParser::IsWord(char letter)
 {
 	char wordLetter[] = { 'A', 'B', 'C', 'D', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '\0' };
@@ -280,10 +285,14 @@ bool GCodeParser::IsWord(char letter)
 }
 
 /// <summary>
-/// 
+/// Gets the value following the word.
 /// </summary>
-/// <param name="letter"></param>
-/// <returns></returns>
+/// <param name="letter">The letter of the word to look for in the line.</param>
+/// <returns>The value following the letter for the word.</returns>
+/// <remarks>
+/// Currently the parser is not sophisticated enough to deal with parameters, 
+/// Boolean operators, expressions, binary operators, functions and repeated items.
+/// </remarks>
 double GCodeParser::GetWordValue(char letter)
 {
 	int pointer = FindWord(letter);
