@@ -13,102 +13,24 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- * 
+ *
  */
 
 
 #include "GCodeParser.h"
 #include <stdlib.h>
+#include <string.h>
 
-/// <summary>
-/// Initialized class.
-/// </summary>
+ /// <summary>
+ /// Initialized class.
+ /// </summary>
 void GCodeParser::Initialize()
 {
 	lineCharCount = 0;
 	line[lineCharCount] = '\0';
+	comments = line;
 	blockDelete = false;
-	completeLineIsAvailableToInterpret = false;
-}
-
-/// <summary>
-/// Looks for a word in the line.
-/// </summary>
-/// <param name="c">The letter of the word to look for in the line.</param>
-/// <returns>A pointer to where the word starts.  Points to \0 if the word was not found.</returns>
-int GCodeParser::FindWord(char letter)
-{
-	int pointer = 0;
-	bool openParentheseFound = false;
-	bool semicolonFound = false;
-	
-	while (line[pointer] != '\0')
-	{	
-		// Look for end of comment.
-		if (line[pointer] == '(')
-			openParentheseFound = true; // Open parenthese... start of comment.
-
-		if (line[pointer] == ';') 
-			semicolonFound = true; // Semicolon... start of comment to end of line.
-
-		// If we are not inside a comment.
-		if (!openParentheseFound && !semicolonFound)
-		{
-			// Look for the word.
-			if (letter == line[pointer])
-			{
-				return pointer;
-			}
-		}
-
-		// Look for end of comment.
-		if (line[pointer] == ')')
-		{
-			openParentheseFound = false;
-
-			// Is this the end of the comment? Scan forward for second closing parenthese, but no opening parenthese first.
-			int scanAheadPointer = pointer + 1;
-
-			while (line[scanAheadPointer] != '\0')
-			{
-				if (line[scanAheadPointer] == '(')
-					break;
-
-				if (line[scanAheadPointer] == ')')
-				{
-					openParentheseFound = true;
-					break;
-				}
-
-				scanAheadPointer++;
-			}
-		}
-
-		pointer++;
-	}
-
-	return pointer;
-}
-
-/// <summary>
-/// Removes a character from the code block (not comments). 
-/// </summary>
-/// <param name="c">The character to remove.</param>
-void GCodeParser::RemoveCharacter(char c)
-{
-	int pointer = FindWord(c);
-
-	while (line[pointer] != '\0')
-	{
-		while (line[pointer] != '\0')
-		{
-			line[pointer] = line[pointer + 1];
-
-			pointer++;
-		}
-
-		pointer = FindWord(c);
-	}
+	completeLineIsAvailableToParse = false;
 }
 
 /// <summary>
@@ -143,17 +65,7 @@ bool GCodeParser::AddCharToLine(char c)
 		if (lastChar != '\r')
 		{
 			line[lineCharCount] = '\0';
-			completeLineIsAvailableToInterpret = true;
-
-			// Spaces and tabs are allowed anywhere on a line of code and do not change the meaning of 
-			// the line, except inside comments. Remove spaces and tabs except in comments. 
-			RemoveCharacter(' ');
-			RemoveCharacter('\t');
-
-			// The optional block delete character the slash '/' when placed first on a line can be used
-			// by some user interfaces to skip lines of code when needed.
-			if (line[0] == '/')
-				blockDelete = true;
+			completeLineIsAvailableToParse = true;
 		}
 		else
 		{
@@ -162,7 +74,7 @@ bool GCodeParser::AddCharToLine(char c)
 	}
 	else
 	{
-		if (completeLineIsAvailableToInterpret)
+		if (completeLineIsAvailableToParse)
 			Initialize();
 
 		// Add character to line.
@@ -174,9 +86,121 @@ bool GCodeParser::AddCharToLine(char c)
 			Initialize();
 	}
 
-	lastChar = c; 
+	lastChar = c;
 
-	return completeLineIsAvailableToInterpret;
+	return completeLineIsAvailableToParse;
+}
+
+/// <summary>
+/// Parses the line removing spaces, tabs and comments. Comments are shifted to the end of the line buffer.
+/// </summary>
+void GCodeParser::ParseLine()
+{
+	int lineLength = strlen(line);
+	line[lineLength + 1] = '\0';
+
+	int pointer = 0;
+	bool openParentheseFound = false;
+	bool semicolonFound = false;
+	int correctCommentsPointerBy = 0;
+
+	while (line[pointer] != '\0')
+	{
+		char c = line[pointer];
+
+		// Look for end of comment.
+		if (c == '(')
+			openParentheseFound = true; // Open parenthese... start of comment.
+
+		if (c == ';')
+			semicolonFound = true; // Semicolon... start of comment to end of line.
+
+		// If we are inside a comment, we need to move it.
+		if (openParentheseFound || semicolonFound)
+		{
+			// Shift line left.
+			for (int i = pointer; i < lineLength; i++)
+			{
+				line[i] = line[i + 1];
+			}
+			line[lineLength] = c;
+		}
+		else
+		{
+			// Spaces and tabs are allowed anywhere on a line of code and do not change the meaning of 
+			// the line, except inside comments. Remove spaces and tabs except in comments. 
+			if (c == ' ' || c == '\t')
+			{
+				int removeCharacterPointer = pointer;
+
+				while (line[removeCharacterPointer] != '\0')
+				{
+					line[removeCharacterPointer] = line[removeCharacterPointer + 1];
+
+					removeCharacterPointer++;
+				}
+
+				correctCommentsPointerBy++;
+			}
+			else
+				pointer++;
+		}
+
+		// Look for end of comment.
+		if (c == ')')
+		{
+			openParentheseFound = false;
+
+			// Is this the end of the comment? Scan forward for second closing parenthese, but no opening parenthese first.
+			int scanAheadPointer = pointer;
+
+			while (line[scanAheadPointer] != '\0')
+			{
+				if (line[scanAheadPointer] == '(')
+					break;
+
+				if (line[scanAheadPointer] == ')')
+				{
+					openParentheseFound = true;
+					break;
+				}
+
+				scanAheadPointer++;
+			}
+		}
+	}
+
+	comments = line + strlen(line) + correctCommentsPointerBy + 1;
+
+	// The optional block delete character the slash '/' when placed first on a line can be used
+	// by some user interfaces to skip lines of code when needed.
+	if (line[0] == '/')
+		blockDelete = true;
+}
+
+/// <summary>
+/// Looks for a word in the line.
+/// </summary>
+/// <param name="c">The letter of the word to look for in the line.</param>
+/// <returns>A pointer to where the word starts.  Points to \0 if the word was not found.</returns>
+int GCodeParser::FindWord(char letter)
+{
+	int pointer = 0;
+	bool openParentheseFound = false;
+	bool semicolonFound = false;
+
+	while (line[pointer] != '\0')
+	{
+		// Look for the word.
+		if (letter == line[pointer])
+		{
+			return pointer;
+		}
+
+		pointer++;
+	}
+
+	return pointer;
 }
 
 /// <summary>
