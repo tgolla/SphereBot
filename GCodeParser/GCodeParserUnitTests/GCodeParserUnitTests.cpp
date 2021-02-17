@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "CppUnitTest.h"
-#include "../GCodeParser/GCodeParser.h"
+#include "../../GCodeParser.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 

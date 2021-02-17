@@ -19,10 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GCodeParser.h" />
+    <ClInclude Include="..\..\GCodeParser.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GCodeParser.cpp" />
+    <ClCompile Include="..\..\GCodeParser.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
