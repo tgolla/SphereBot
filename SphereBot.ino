@@ -296,7 +296,7 @@ void processCommand()
 
       // G04 – Dwell Command
       // G04 is called the Dwell command because it makes the machine stop what it is doing or dwell
-      // for a specified length of time. It’s helpful to be able to dwell during a cutting operation,
+      // for a specified length of time. It is helpful to be able to dwell during a cutting operation,
       // and also to facilitate various non-cutting operations of the machine.
       case 4: // G4 - Delay P milliseconds.
         if (GCode.HasWord('P'))
