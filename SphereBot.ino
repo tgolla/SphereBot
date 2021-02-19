@@ -294,7 +294,8 @@ void processCommand()
         }
         break;
 
-      // G04 is called the Dwell command because it makes the machine stop what it’s doing or dwell
+      // G04 – Dwell Command
+      // G04 is called the Dwell command because it makes the machine stop what it is doing or dwell
       // for a specified length of time. It’s helpful to be able to dwell during a cutting operation,
       // and also to facilitate various non-cutting operations of the machine.
       case 4: // G4 - Delay P milliseconds.
@@ -310,8 +311,8 @@ void processCommand()
       // So the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the 
       // previous position.
       //
-      // On the other hand, in relative mode,  the positioning of the tool is relative to the 
-      // last point. So if the machine is currently at point(10,10), the command G01 X10 Y5 will
+      // On the other hand, in relative mode, the positioning of the tool is relative to the 
+      // last point. So if the machine is currently at point (10,10), the command G01 X10 Y5 will
       // take the tool to point (20,15). This mode is also called “incremental mode”.
       case 90: // G90 - Absolute Positioning.
         absoluteMode = true;
@@ -351,7 +352,7 @@ void processCommand()
         minPenPosition = GCode.GetWordValue('P');
       break;
 
-    case 302: // M302 - Set maximun pen position.
+    case 302: // M302 - Set maximum  pen position.
       if (GCode.HasWord('P'))
         maxPenPosition = GCode.GetWordValue('P');
       break;
@@ -361,7 +362,7 @@ void processCommand()
         penUpPosition = GCode.GetWordValue('P');
       break;
 
-    case 402: // M402 - Propretary: Set global zoom factor.
+    case 402: // M402 - Set global zoom factor.
       if (GCode.HasWord('S'))
         zoom = GCode.GetWordValue('S');
       break;
