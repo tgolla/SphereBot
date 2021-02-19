@@ -250,8 +250,8 @@ void processCommand()
       // G00 – Rapid Positioning
       // The G00 command moves the machine at maximum travel speed from a current position to a
       // specified point or the coordinates specified by the command. The machine will move all
-      // axis at the same time so they complete the travel simultaneously. This results in a 
-      // straight line movement to the new position point.
+      // axis at the same time, so they complete the travel simultaneously. This results in a 
+      // straight-line movement to the new position point.
       case 0: 
         steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
         break;
@@ -271,7 +271,7 @@ void processCommand()
         break;
 
       // G02 – Circular Interpolation Clockwise
-      // The G02 command tells the machine to move clockwise in a circular pattern. It’s the same
+      // The G02 command tells the machine to move clockwise in a circular pattern. It is the same
       // concept as the G01 command and it’s used when performing the appropriate machining process.
       // In addition to the end point parameters, here we also need to define the center of rotation,
       // or the distance of the arc start point from the center point of the arc. The start point is
@@ -308,11 +308,11 @@ void processCommand()
       // G90 is for absolute mode and G91 is for relative mode.
       //
       // In absolute mode the positioning of the tool is always from the absolute point or zero.
-      // So the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the 
+      // So, the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the 
       // previous position.
       //
       // On the other hand, in relative mode, the positioning of the tool is relative to the 
-      // last point. So if the machine is currently at point (10,10), the command G01 X10 Y5 will
+      // last point. So, if the machine is currently at point (10,10), the command G01 X10 Y5 will
       // take the tool to point (20,15). This mode is also called “incremental mode”.
       case 90: // G90 - Absolute Positioning.
         absoluteMode = true;
