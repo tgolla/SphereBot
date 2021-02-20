@@ -110,7 +110,7 @@ void GCodeParser::ParseLine()
 	{
 		char c = line[pointer];
 
-		// Look for end of comment.
+		// Look for start of comment.
 		if (c == '(')
 			openParentheseFound = true; // Open parenthese... start of comment.
 
@@ -174,6 +174,56 @@ void GCodeParser::ParseLine()
 
 	// Set pointer to comments.
 	comments = line + strlen(line) + correctCommentsPointerBy + 1;
+
+	// There are several 'active' comments which look like comments but cause some action, like
+	// '(debug,..)' or '(print,..)'. If there are several comments on a line, only the last comment
+	// will be interpreted according to these rules. For this reason there is a pointer to the last comment.
+	pointer = 0;
+	openParentheseFound = false;
+
+	while (comments[pointer] != '\0')
+	{
+		char c = comments[pointer];
+
+		// Open parenthese... start of comment.
+		if (c == '(')
+		{
+			lastComment = comments + pointer;
+			openParentheseFound = true; 
+		}
+
+		// Semicolon... start of comment to end of line, the last comment.
+		if (c == ';')
+		{
+			lastComment = comments + pointer;
+			break;
+		}
+
+		// Look for end of comment.
+		if (c == ')')
+		{
+			openParentheseFound = false;
+
+			// Is this the end of the comment? Scan forward for second closing parenthese, but no opening parenthese first.
+			int scanAheadPointer = pointer;
+
+			while (line[scanAheadPointer] != '\0')
+			{
+				if (line[scanAheadPointer] == '(')
+					break;
+
+				if (line[scanAheadPointer] == ')')
+				{
+					openParentheseFound = true;
+					break;
+				}
+
+				scanAheadPointer++;
+			}
+		}
+
+		pointer++;
+	}
 
 	// The optional block delete character the slash '/' when placed first on a line can be used
 	// by some user interfaces to skip lines of code when needed.
