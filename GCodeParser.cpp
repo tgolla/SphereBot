@@ -232,6 +232,14 @@ void GCodeParser::ParseLine()
 }
 
 /// <summary>
+/// Removes the comment seperators for comments and last comment along with any leading spaces.
+/// </summary>
+/// <remark>Once removed they cannot be replaced.</remark>
+void GCodeParser::RemoveCommentSeparators()
+{
+}
+
+/// <summary>
 /// Looks for a word in the line.
 /// </summary>
 /// <param name="c">The letter of the word to look for in the line.</param>

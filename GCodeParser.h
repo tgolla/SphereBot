@@ -57,6 +57,7 @@ public:
 	GCodeParser();
 	bool AddCharToLine(char c);
 	void ParseLine();
+	void RemoveCommentSeparators();
 
 	int FindWord(char letter);
 	bool HasWord(char letter);
