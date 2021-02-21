@@ -111,10 +111,10 @@ void GCodeParser::ParseLine()
 		char c = line[pointer];
 
 		// Look for start of comment.
-		if (c == '(')
+		if (!semicolonFound && c == '(')
 			openParentheseFound = true; // Open parenthese... start of comment.
 
-		if (c == ';')
+		if (!openParentheseFound && c == ';')
 			semicolonFound = true; // Semicolon... start of comment to end of line.
 
 		// If we are inside a comment, we need to move it to the end of the buffer in order to seperate it.
@@ -149,7 +149,7 @@ void GCodeParser::ParseLine()
 		}
 
 		// Look for end of comment.
-		if (c == ')')
+		if (!semicolonFound && c == ')')
 		{
 			openParentheseFound = false;
 
@@ -193,7 +193,7 @@ void GCodeParser::ParseLine()
 		}
 
 		// Semicolon... start of comment to end of line, the last comment.
-		if (c == ';')
+		if (!openParentheseFound && c == ';')
 		{
 			lastComment = comments + pointer;
 			break;
@@ -205,14 +205,14 @@ void GCodeParser::ParseLine()
 			openParentheseFound = false;
 
 			// Is this the end of the comment? Scan forward for second closing parenthese, but no opening parenthese first.
-			int scanAheadPointer = pointer;
+			int scanAheadPointer = pointer + 1;
 
-			while (line[scanAheadPointer] != '\0')
+			while (comments[scanAheadPointer] != '\0')
 			{
-				if (line[scanAheadPointer] == '(')
+				if (comments[scanAheadPointer] == '(')
 					break;
 
-				if (line[scanAheadPointer] == ')')
+				if (comments[scanAheadPointer] == ')')
 				{
 					openParentheseFound = true;
 					break;
@@ -237,6 +237,77 @@ void GCodeParser::ParseLine()
 /// <remark>Once removed they cannot be replaced.</remark>
 void GCodeParser::RemoveCommentSeparators()
 {
+	int commentsLength = strlen(comments);
+
+	int pointer = 0;
+	bool openParentheseFound = false;
+	int correctCommentsPointerBy = 0;
+
+	while (comments[pointer] != '\0')
+	{
+		char c = comments[pointer];
+
+		// Look for start of comment.
+		if (c == '(')
+		{
+			comments[pointer] = ' ';
+			openParentheseFound = true; // Open parenthese... start of comment.
+		}
+
+		if (!openParentheseFound && c == ';')
+		{
+			comments[pointer] = ' ';
+			break;
+		}
+
+		// Look for end of comment.
+		if (c == ')')
+		{
+			openParentheseFound = false;
+
+			// Is this the end of the comment? Scan forward for second closing parenthese, but no opening parenthese first.
+			int scanAheadPointer = pointer + 1;
+
+			while (comments[scanAheadPointer] != '\0')
+			{
+				if (comments[scanAheadPointer] == '(')
+					break;
+
+				if (comments[scanAheadPointer] == ')')
+				{
+					openParentheseFound = true;
+					break;
+				}
+
+				scanAheadPointer++;
+			}
+
+			if (!openParentheseFound)
+			{
+				// Shift line left.
+				for (int i = pointer; i < commentsLength; i++)
+				{
+					comments[i] = comments[i + 1];
+				}
+			}
+			else
+				pointer++;
+		}
+		else
+			pointer++;
+	}
+
+	while (comments[0] == ' ')
+	{
+		// Shift pointer right
+		comments = comments + 1;
+	}
+
+	while (lastComment[0] == ' ')
+	{
+		// Shift pointer right
+		lastComment = lastComment + 1;
+	}
 }
 
 /// <summary>

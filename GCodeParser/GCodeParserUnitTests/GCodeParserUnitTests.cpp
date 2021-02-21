@@ -21,8 +21,8 @@ namespace GCodeParserUnitTests
 				' ', 'e', 'n', 'd', ' ', 'o', 'f', ' ', 'l', 'i', 'n', 'e', '.', '\n', 'G', '0',
 				'1',' ','X','3','.','2',' ','Y','1','.','5',' ', '(', 'C', 'o', 'm', 'm', 'e',
 				'n', 't', ')', ' ', 'H', 'e', 'r', 'e', ')', ' ', 'Z', '5', '.', '0', '\r', 
-				'\n', '/', 'G', '2', '1', ' ', '(', 'B', 'l', 'o', 'c', 'k', ' ', 'D', 'e', 'l',
-				'e', 't', 'e', ')', ' ', 'G', '9', '0', ' ', ';', 'M', 'S', 'G', ',', '1', '2', '3', '\0'
+				'\n', '/', 'G', '2', '1', ' ', '(', 'B', 'l', 'o', 'c', 'k', ' ', ';', 'D', 'e', 'l',
+				'e', 't', 'e', ')', ' ', 'G', '9', '0', ' ', ';', 'M', 'S', 'G', ',', '1', '2', '3', '(', '?', ')', '\0'
 			};
 
 			bool completeLineIsAvailableToInterpret;
@@ -88,8 +88,8 @@ namespace GCodeParserUnitTests
 
 			AddLine(&GCode, startAt);
 
-			char resultLine4[] = { '/', 'G', '2', '1', ' ', '(', 'B', 'l', 'o', 'c', 'k', ' ', 'D', 'e', 'l',
-				'e', 't', 'e', ')', ' ', 'G', '9', '0', ' ', ';', 'M', 'S', 'G', ',', '1', '2', '3', '\0' };
+			char resultLine4[] = { '/', 'G', '2', '1', ' ', '(', 'B', 'l', 'o', 'c', 'k', ' ', ';', 'D', 'e', 'l',
+				'e', 't', 'e', ')', ' ', 'G', '9', '0', ' ', ';', 'M', 'S', 'G', ',', '1', '2', '3', '(', '?', ')', '\0' };
 
 			pointer = 0;
 			while (GCode.line[pointer] != '\0')
@@ -173,7 +173,7 @@ namespace GCodeParserUnitTests
 			char resultComments[] = { '(', 'C', 'o', 'm', 'm', 'e', 'n', 't', ' ', 'H', 'e', 'r', 'e', ')' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments[pointer]);
 
@@ -188,7 +188,7 @@ namespace GCodeParserUnitTests
 				'n', 'd', ' ', 'o', 'f', ' ', 'l', 'i',	'n', 'e', '.' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments2[pointer]);
 
@@ -202,7 +202,7 @@ namespace GCodeParserUnitTests
 			char resultComments3[] = { '(', 'C', 'o', 'm', 'm', 'e', 'n', 't', ')', ' ', 'H', 'e', 'r', 'e', ')' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments3[pointer]);
 
@@ -213,11 +213,11 @@ namespace GCodeParserUnitTests
 
 			GCode.ParseLine();
 
-			char resultComments4[] = { '(', 'B', 'l', 'o', 'c', 'k', ' ', 'D', 'e', 'l',
-				'e', 't', 'e', ')', ';', 'M', 'S', 'G', ',', '1', '2', '3', '\0' };
+			char resultComments4[] = { '(', 'B', 'l', 'o', 'c', 'k', ' ', ';', 'D', 'e', 'l',
+				'e', 't', 'e', ')', ';', 'M', 'S', 'G', ',', '1', '2', '3', '(', '?', ')', '\0' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments4[pointer]);
 
@@ -237,7 +237,7 @@ namespace GCodeParserUnitTests
 			char resultLastComment[] = { '(', 'C', 'o', 'm', 'm', 'e', 'n', 't', ' ', 'H', 'e', 'r', 'e', ')' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment[pointer]);
 
@@ -252,7 +252,7 @@ namespace GCodeParserUnitTests
 				'n', 'd', ' ', 'o', 'f', ' ', 'l', 'i',	'n', 'e', '.' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment2[pointer]);
 
@@ -266,7 +266,7 @@ namespace GCodeParserUnitTests
 			char resultLastComment3[] = { '(', 'C', 'o', 'm', 'm', 'e', 'n', 't', ')', ' ', 'H', 'e', 'r', 'e', ')' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment3[pointer]);
 
@@ -277,10 +277,10 @@ namespace GCodeParserUnitTests
 
 			GCode.ParseLine();
 
-			char resultLastComment4[] = { ';', 'M', 'S', 'G', ',', '1', '2', '3', '\0' };
+			char resultLastComment4[] = { ';', 'M', 'S', 'G', ',', '1', '2', '3', '(', '?', ')', '\0' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment4[pointer]);
 
@@ -330,7 +330,7 @@ namespace GCodeParserUnitTests
 			char resultComments[] = { 'C', 'o', 'm', 'm', 'e', 'n', 't', ' ', 'H', 'e', 'r', 'e' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments[pointer]);
 
@@ -346,7 +346,7 @@ namespace GCodeParserUnitTests
 				'n', 'd', ' ', 'o', 'f', ' ', 'l', 'i',	'n', 'e', '.' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments2[pointer]);
 
@@ -361,7 +361,7 @@ namespace GCodeParserUnitTests
 			char resultComments3[] = { 'C', 'o', 'm', 'm', 'e', 'n', 't', ')', ' ', 'H', 'e', 'r', 'e' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments3[pointer]);
 
@@ -373,11 +373,11 @@ namespace GCodeParserUnitTests
 			GCode.ParseLine();
 			GCode.RemoveCommentSeparators();
 
-			char resultComments4[] = { 'B', 'l', 'o', 'c', 'k', ' ', 'D', 'e', 'l',
-				'e', 't', 'e', ' ', 'M', 'S', 'G', ',', '1', '2', '3', '\0' };
+			char resultComments4[] = { 'B', 'l', 'o', 'c', 'k', ' ', ';', 'D', 'e', 'l',
+				'e', 't', 'e', ' ', 'M', 'S', 'G', ',', '1', '2', '3', '(', '?', ')', '\0' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.comments[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.comments[pointer], resultComments4[pointer]);
 
@@ -398,7 +398,7 @@ namespace GCodeParserUnitTests
 			char resultLastComment[] = { 'C', 'o', 'm', 'm', 'e', 'n', 't', ' ', 'H', 'e', 'r', 'e' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment[pointer]);
 
@@ -414,7 +414,7 @@ namespace GCodeParserUnitTests
 				'n', 'd', ' ', 'o', 'f', ' ', 'l', 'i',	'n', 'e', '.' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment2[pointer]);
 
@@ -429,7 +429,7 @@ namespace GCodeParserUnitTests
 			char resultLastComment3[] = { 'C', 'o', 'm', 'm', 'e', 'n', 't', ')', ' ', 'H', 'e', 'r', 'e' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment3[pointer]);
 
@@ -441,10 +441,10 @@ namespace GCodeParserUnitTests
 			GCode.ParseLine();
 			GCode.RemoveCommentSeparators();
 
-			char resultLastComment4[] = {'M', 'S', 'G', ',', '1', '2', '3', '\0' };
+			char resultLastComment4[] = {'M', 'S', 'G', ',', '1', '2', '3', '(', '?', ')', '\0' };
 
 			pointer = 0;
-			while (GCode.line[pointer] != '\0')
+			while (GCode.lastComment[pointer] != '\0')
 			{
 				Assert::AreEqual(GCode.lastComment[pointer], resultLastComment4[pointer]);
 
