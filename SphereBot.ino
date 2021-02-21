@@ -37,6 +37,9 @@
  *
  *   - Modified code to operate servo installed in reverse.
  * 
+ *   - A true to G-Code specification parser was added. The class was developed using Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
+ *     and the Microsoft Unit Testing Framework for C++ (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
+ * 
  * This sketch needs the following non-standard library (install it in the Arduino library directory):
  *
  * Adafruit Motor Shield (select appropriate version ):
@@ -45,6 +48,8 @@
  *
  * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file.
  *
+ * Sketch uses 14012 bytes (43%) of program storage space. Maximum is 32256 bytes.
+ * Global variables use 856 bytes (41%) of dynamic memory, leaving 1192 bytes for local variables. Maximum is 2048 bytes.
  */
 
 #include "Configuration.h"
