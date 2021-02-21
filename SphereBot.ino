@@ -37,6 +37,9 @@
  *
  *   - Modified code to operate servo installed in reverse.
  * 
+ *   - A true to G-Code specification parser was added. The class was developed using Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
+ *     and the Microsoft Unit Testing Framework for C++ (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
+ * 
  * This sketch needs the following non-standard library (install it in the Arduino library directory):
  *
  * Adafruit Motor Shield (select appropriate version ):
@@ -45,9 +48,12 @@
  *
  * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file.
  *
+ * Sketch uses 14012 bytes (43%) of program storage space. Maximum is 32256 bytes.
+ * Global variables use 856 bytes (41%) of dynamic memory, leaving 1192 bytes for local variables. Maximum is 2048 bytes.
  */
 
 #include "Configuration.h"
+#include "GCodeParser.h"
 #include <Wire.h>
 
 /* DualStepper */
@@ -89,46 +95,50 @@ DualStepper *steppers = new DualStepper(xStepper, yStepper, STEPS_PER_REVOLUTION
 
 Servo servo;
 
-// Serial communication variables.
-const int MAX_CMD_SIZE = 256; // Maximun buffer size.
-char buffer[MAX_CMD_SIZE]; // Buffer for serial commands.
-char serialChar; // Value for each byte read in from serial port.
-int serialCount = 0; // Current length of command.
-char *strCharPointer; // Just a pointer to find chars in the command string like X, Y, Z, E, etc.
-boolean commentMode = false; // Flag indicating comment.
-
 // GCode states.
 boolean absoluteMode = true;
 double feedrate = 160.0; // steps/second
 double zoom = DEFAULT_ZOOM_FACTOR;
 
+GCodeParser GCode = GCodeParser();
+
 void setup()
 {
   loadPenConfiguration();
-  Serial.begin(115200);
-  clearBuffer();
 
+  Serial.begin(115200);
+
+  // Configure Adafruit motor shield.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 2
   MS.begin();
   TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
 #endif
-  Serial.println("Ready");
 
   steppers->setMaxSpeed(MAX_FEEDRATE);
 
+  // Configure pen servo.
   servo.attach(SERVO_PIN);
   servoWrite(penUpPosition);
   currentPenPosition = penUpPosition;
 
+  Serial.println("Ready");
   delay(100);
 }
 
-// Input loop, looks for manual input and then checks to see if and serial commands are coming in.
-void loop() 
+void loop()
 {
-  getCommand(); // Check for Gcodes.
+  // Check serial port for character.
+  if (Serial.available() > 0)
+  {
+    if (GCode.AddCharToLine(Serial.read()))
+    {
+      GCode.ParseLine();
+      processCommand();
+    }
+  }
 }
 
+// Loads the pen configuration from memory.
 void loadPenConfiguration()
 {
   // Check EEPROM location 0 for presence of a magic number. If it's there, we have saved pen settings.
@@ -146,6 +156,7 @@ void loadPenConfiguration()
   }
 }
 
+// Saves the pen configuration to memeoy.
 void savePenConfiguration()
 {
   EEPROM.update(MIN_PEN_EEPROM_LOCATION, minPenPosition);
@@ -154,6 +165,7 @@ void savePenConfiguration()
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, EEPROM_MAGIC_NUMBER);
 }
 
+// Clears the pen configuration from memory.
 void clearPenConfiguration()
 {
   minPenPosition = MIN_PEN_POSITION;
@@ -184,13 +196,13 @@ void movePen(byte toPosition)
 
     // Loop takes it to one step less than full travel.
     for (int i = 1; i < 10; i++)
-    { 
+    {
       servoWrite(currentPenPosition + penIncrement * i);
       delay(penDelay);
     }
 
     // Finish off exactly with no round off errors.
-    servoWrite(toPosition); 
+    servoWrite(toPosition);
   }
   else
   {
@@ -201,245 +213,176 @@ void movePen(byte toPosition)
   currentPenPosition = toPosition;
 }
 
-// Gets a commands from the serial connection and processes it.
-void getCommand() 
-{
-  // Each time we see something on the serial port.
-  if (Serial.available() > 0) 
-  {
-    // Read individual byte from serial port.
-    serialChar = Serial.read(); 
-    
-    if (serialChar == '\n' || serialChar == '\r') 
-    {
-      // If it is an end of a command character, process the command. 
-      buffer[serialCount] = 0;
-      processCommand(buffer, serialCount);
-
-      clearBuffer();
-
-      // Reset comment mode before each new command is processed.
-      commentMode = false; 
-    }
-    else 
-    {
-      // If it's not the end of command look for the start of a comment.
-      // TODO: Bug assuming that comments in braces end the line.
-      if (serialChar == ';' || serialChar == '(')
-      {
-        commentMode = true;
-      }
-
-      // If not a comment add to buffer.
-      if (commentMode != true) 
-      {
-        // Add byte to buffer string.
-        buffer[serialCount] = serialChar; 
-        serialCount++;
-
-        // Deal with buffer overflow by clearing the buffer and restarting. 
-          if (serialCount > MAX_CMD_SIZE) 
-        {
-          clearBuffer();
-          Serial.flush();
-        }
-      }
-    }
-  }
-}
-
-// Empties command buffer from serial connection.
-void clearBuffer() 
-{
-  serialCount = 0;
-}
-
-boolean getValue(char key, char command[], double *value)
-{
-  // Find key parameter
-  strCharPointer = strchr(buffer, key);
-
-  if (strCharPointer != NULL) // We found a key value
-  {
-    *value = (double)strtod(&command[strCharPointer - command + 1], NULL);
-    return true;
-  }
-  return false;
-}
-
 // Clamps a value between an lower and upper bound.
 inline double clamp(double value, double minValue, double maxValue)
 {
   return value < minValue ? minValue : (value > maxValue ? maxValue : value);
 }
 
-// Deals with standardized input from serial connection.
-void processCommand(char command[], int commandLength) 
+// Processes parsed GCode.
+void processCommand()
 {
-  if (commandLength > 0 && command[0] == 'G') // G-codes
+  if (GCode.HasWord('G')) // G-Codes
   {
-    int codenum = (int)strtod(&command[1], NULL);
-
     double tempX = steppers->xPos();
     double tempY = steppers->yPos();
 
-    double xVal;
-    boolean hasXVal = getValue('X', command, &xVal);
-    if (hasXVal)
-      xVal *= zoom;
-    double yVal;
-    boolean hasYVal = getValue('Y', command, &yVal);
-    if (hasYVal)
-      yVal *= zoom;
-    double iVal;
-    boolean hasIVal = getValue('I', command, &iVal);
-    if (hasIVal)
-      iVal *= zoom;
-    double jVal;
-    boolean hasJVal = getValue('J', command, &jVal);
-    if (hasJVal)
-      jVal *= zoom;
-    double rVal;
-    boolean hasRVal = getValue('R', command, &rVal);
-    if (hasRVal)
-      rVal *= zoom;
-    double pVal;
-    boolean hasPVal = getValue('P', command, &pVal);
-
-    getValue('F', command, &feedrate);
-
-    if (absoluteMode)
+    if (GCode.HasWord('X'))
     {
-      if (hasXVal)
-        tempX = xVal;
-      if (hasYVal)
-        tempY = yVal;
+      if (absoluteMode)
+        tempX = GCode.GetWordValue('X') * zoom;
+      else
+        tempX += GCode.GetWordValue('X') * zoom;
     }
-    else
+
+    if (GCode.HasWord('Y'))
     {
-      if (hasXVal)
-        tempX += xVal;
-      if (hasYVal)
-        tempY += yVal;
+       if (absoluteMode)
+        tempY = GCode.GetWordValue('Y') * zoom;
+      else
+        tempY += GCode.GetWordValue('Y') * zoom;
     }
+
+    if(GCode.HasWord('F'))
+      feedrate = GCode.GetWordValue('F');
 
     tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
 
+    int codenum = (int)GCode.GetWordValue('G');
+
     switch (codenum)
     {
-    case 0: // G0, Rapid positioning.
-      steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
-      break;
-    case 1: // G1, linear interpolation at specified speed.
-      if (currentPenPosition <= penUpPosition)
-      {
-        // Potentially wrap around the sphere if pen is up.
-        steppers->travelTo(tempX, tempY, feedrate);
-      }
-      else
-      {
-        steppers->moveTo(tempX, tempY, feedrate);
-      }
-      break;
-    case 2: // G2, Clockwise arc.
-    case 3: // G3, Counterclockwise arc.
-      if (hasIVal && hasJVal)
-      {
-        double centerX = steppers->xPos() + iVal;
-        double centerY = steppers->yPos() + jVal;
-        drawArc(centerX, centerY, tempX, tempY, (codenum == 2));
-      }
-      else if (hasRVal)
-      {
-        //drawRadius(tempX, tempY, rVal, (codenum==2));
-      }
-      break;
-    case 4: // G4, Delay P ms.
-      if (hasPVal)
-      {
-        delay(pVal);
-      }
-      break;
-    case 90: // G90, Absolute Positioning.
-      absoluteMode = true;
-      break;
-    case 91: // G91, Incremental Positioning.
-      absoluteMode = false;
-      break;
+      // G00 – Rapid Positioning
+      // The G00 command moves the machine at maximum travel speed from a current position to a
+      // specified point or the coordinates specified by the command. The machine will move all
+      // axis at the same time, so they complete the travel simultaneously. This results in a 
+      // straight-line movement to the new position point.
+      case 0: 
+        steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
+        break;
+
+      // G01 – Linear Interpolation
+      // The G01 G-code command instructs the machine to move in a straight line at a set feed
+      // rate or speed. We specify the end position with the X, Y and Z values, and the speed 
+      // with the F value. The machine controller calculates (interpolates) the intermediate 
+      // points to pass through to get that straight line. Although these G-code commands are 
+      // simple and quite intuitive to understand, behind them, the machine controller performs
+      // thousands of calculations per second in order to make these movements.
+      case 1:
+        if (currentPenPosition <= penUpPosition)
+          steppers->travelTo(tempX, tempY, feedrate); // Potentially wrap around the sphere if pen is up.
+        else
+          steppers->moveTo(tempX, tempY, feedrate);
+        break;
+
+      // G02 – Circular Interpolation Clockwise
+      // The G02 command tells the machine to move clockwise in a circular pattern. It is the same
+      // concept as the G01 command and it’s used when performing the appropriate machining process.
+      // In addition to the end point parameters, here we also need to define the center of rotation,
+      // or the distance of the arc start point from the center point of the arc. The start point is
+      // actually the end point from the previous command or the current point.
+      case 2: 
+      // G03 – Circular Interpolation Counterclockwise
+      // Just like the G02, the G03 G-code command defines the machine to move in circular pattern.
+      // The only difference here is that the motion is counterclockwise. All other features and rules
+      // are the same as the G02 command.
+      case 3: 
+        if (GCode.HasWord('I') && GCode.HasWord('J'))
+        {
+          double centerX = steppers->xPos() + (GCode.GetWordValue('I') * zoom);
+          double centerY = steppers->yPos() + (GCode.GetWordValue('J') * zoom);
+          drawArc(centerX, centerY, tempX, tempY, (codenum == 2));
+        }
+        else if (GCode.HasWord('R'))
+        {
+          //drawRadius(tempX, tempY, GCode.GetWordValue('R') * zoom, (codenum==2));
+        }
+        break;
+
+      // G04 – Dwell Command
+      // G04 is called the Dwell command because it makes the machine stop what it is doing or dwell
+      // for a specified length of time. It is helpful to be able to dwell during a cutting operation,
+      // and also to facilitate various non-cutting operations of the machine.
+      case 4: // G4 - Delay P milliseconds.
+        if (GCode.HasWord('P'))
+          delay(GCode.GetWordValue('P'));
+        break;
+
+      // G90/G91 – Positioning G-code commands
+      // With the G90 and G91 commands we tell the machine how to interpret the coordinates.
+      // G90 is for absolute mode and G91 is for relative mode.
+      //
+      // In absolute mode the positioning of the tool is always from the absolute point or zero.
+      // So, the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the 
+      // previous position.
+      //
+      // On the other hand, in relative mode, the positioning of the tool is relative to the 
+      // last point. So, if the machine is currently at point (10,10), the command G01 X10 Y5 will
+      // take the tool to point (20,15). This mode is also called “incremental mode”.
+      case 90: // G90 - Absolute Positioning.
+        absoluteMode = true;
+        break;
+      case 91: // G91 - Incremental Positioning.
+        absoluteMode = false;
+        break;
     }
   }
-  else if (commandLength > 0 && command[0] == 'M') // M-codes
+  else if (GCode.HasWord('M')) // M-Codes
   {
     double value;
-    int codenum = (int)strtod(&command[1], NULL);
+    int codenum = (int)GCode.GetWordValue('M');
     switch (codenum)
     {
-    case 18: // Disable Drives.
+    case 18: // M18 - Disable all stepper motors
       xStepper->release();
       yStepper->release();
       break;
 
-    case 300: // Servo Position.
-      if (getValue('S', command, &value))
+    case 300: // M300 - Set pen (servo) position.
+      if (GCode.HasWord('S'))
       {
+        value = GCode.GetWordValue('S');
+
         if (value > 180)
           value = penUpPosition;
+
         value = clamp(value, minPenPosition, maxPenPosition);
+
         movePen(value);
       }
       break;
 
-    case 301: // Set min pen position.
-      if (getValue('P', command, &value))
-      {
-        minPenPosition = value;
-      }
+    case 301: // M301 - Set minimum pen position.
+      if (GCode.HasWord('P'))
+        minPenPosition = GCode.GetWordValue('P');
       break;
 
-    case 302: // Set max pen position.
-      if (getValue('P', command, &value))
-      {
-        maxPenPosition = value;
-      }
+    case 302: // M302 - Set maximum  pen position.
+      if (GCode.HasWord('P'))
+        maxPenPosition = GCode.GetWordValue('P');
       break;
 
-    case 303: // Set default pen up position.
-      if (getValue('P', command, &value))
-      {
-        penUpPosition = value;
-      }
+    case 303: // M303 - Set default pen up position.
+      if (GCode.HasWord('P'))
+        penUpPosition = GCode.GetWordValue('P');
       break;
 
-    case 402: // Propretary: Set global zoom factor.
-      if (getValue('S', command, &value))
-      {
-        zoom = value;
-      }
+    case 402: // M402 - Set global zoom factor.
+      if (GCode.HasWord('S'))
+        zoom = GCode.GetWordValue('S');
       break;
 
-    case 500:
+    case 500: // M500 - Save pen configuration to memory.
       savePenConfiguration();
       break;
 
-    case 501:
+    case 501: // M501 - Load pen configuration from memory.
       loadPenConfiguration();
       break;
 
-    case 502:
+    case 502: // M502 - Clear pen configuration from memory.
       clearPenConfiguration();
       break;
-    }
-  }
-  else if (commandLength > 0 && command[0] == 'N') // N-codes
-  {
-    // Skip line number.
-    int i = 1;
-    while (i < commandLength && command[i] != ' ')
-      ++i;
-    if (i < commandLength - 1)
-    {
-      processCommand(command + i + 1, commandLength - i - 1);
-      return;
     }
   }
 
@@ -447,7 +390,7 @@ void processCommand(char command[], int commandLength)
   if (Serial.available() <= 0)
   {
     Serial.print("ok:");
-    Serial.println(command);
+    Serial.println(GCode.line);
   }
 }
 
