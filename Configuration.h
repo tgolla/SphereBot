@@ -18,6 +18,15 @@
 #ifndef Configuration_h
 #define Configuration_h
 
+// Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
+// The display uses hardware SPI, plus #9 & #10.
+#define TFT_CS 10
+#define TFT_DC 9
+#define FT6206_THRESSHOLD 0x80
+
+// SD Chio Select Pin
+#define SD_CS 4
+
 // Version of Adafruit motor shield used.  One of the two lines should be commented out.
 
 //#define ADAFRUIT_MOTOR_SHIELD_VERSION 1

@@ -48,18 +48,27 @@
  *
  * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file.
  *
- * Sketch uses 14012 bytes (43%) of program storage space. Maximum is 32256 bytes.
- * Global variables use 856 bytes (41%) of dynamic memory, leaving 1192 bytes for local variables. Maximum is 2048 bytes.
+ * text section exceeds available space in board
+ * Sketch uses 32278 bytes (100%) of program storage space. Maximum is 32256 bytes.
+ * Global variables use 1703 bytes (83%) of dynamic memory, leaving 345 bytes for local variables. Maximum is 2048 bytes.
  */
 
 #include "Configuration.h"
 #include "GCodeParser.h"
-#include <Wire.h>
 
-/* DualStepper */
+// Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
+#include <Adafruit_GFX.h>         // Core Graphics Library
+#include <SPI.h>                  // Needed for TFT Display
+#include <Wire.h>                 // Needed for FT6206
+#include <Adafruit_ILI9341.h>     // This contains the low-level code specific to the TFT display.
+#include <SdFat.h>                // SD card & FAT filesystem library.
+#include <Adafruit_FT6206.h>      // Controller library which does all the low level chatting with the FT6206 capacitive touch driver chip.
+#include <Adafruit_ImageReader.h> // Image-reading functions.
+
+// DualStepper Library for Adafruit Motor Shield
 #include "DualStepper.h"
 
-/* Servo library */
+// Servo Library
 #include <Servo.h>
 
 #include <EEPROM.h>
@@ -100,13 +109,23 @@ boolean absoluteMode = true;
 double feedrate = 160.0; // steps/second
 double zoom = DEFAULT_ZOOM_FACTOR;
 
+// Defaults to Serial port for GCode if SD and Touchscreen are not present.
+boolean serialMode = true;
+
 GCodeParser GCode = GCodeParser();
+
+SdFat SD; // SD card filesystem.
+Adafruit_ImageReader reader(SD); // Image-reader object, pass in SD.
+
+// Instantiate class for TFT screen and Touchscreen
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+Adafruit_FT6206 ts = Adafruit_FT6206();
 
 void setup()
 {
-  loadPenConfiguration();
-
   Serial.begin(115200);
+  
+  loadPenConfiguration();
 
   // Configure Adafruit motor shield.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 2
@@ -121,8 +140,39 @@ void setup()
   servoWrite(penUpPosition);
   currentPenPosition = penUpPosition;
 
-  Serial.println("Ready");
-  delay(100);
+  // Look for SD and Touchscreen.
+  if (SD.begin(SD_CS))
+  {
+     Serial.println("SD card found.");
+
+    if (ts.begin(FT6206_THRESSHOLD))
+    {
+      Serial.println("Touchscreen found.");
+
+      tft.begin();
+      tft.setRotation(3);
+      tft.fillScreen(ILI9341_WHITE);
+
+      serialMode = false;
+
+      // Display Splash Screen
+      ImageReturnCode stat;
+      stat = reader.drawBMP("/splash.bmp", tft, 0, 0);
+      
+      reader.printStatus(stat);
+  
+      delay(7000);
+
+      // Prompt for operation mode (Serial/USB or SD Card)
+
+    }
+  }
+
+  if (serialMode)
+  {
+    Serial.println("Ready");
+    delay(100);
+  }
 }
 
 void loop()
