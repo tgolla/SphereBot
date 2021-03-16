@@ -24,7 +24,10 @@
 #define TFT_DC 9
 #define FT6206_THRESSHOLD 0x80
 
-// SD Chio Select Pin
+// Splash screen display delay in milliseconds.
+#define SPLASH_SCREEN_DELAY 7000
+
+// SD Chip Select Pin
 #define SD_CS 4
 
 // Version of Adafruit motor shield used.  One of the two lines should be commented out.

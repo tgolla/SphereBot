@@ -114,7 +114,7 @@ boolean serialMode = true;
 
 GCodeParser GCode = GCodeParser();
 
-SdFat SD; // SD card filesystem.
+SdFat SD;                        // SD card filesystem.
 Adafruit_ImageReader reader(SD); // Image-reader object, pass in SD.
 
 // Instantiate class for TFT screen and Touchscreen
@@ -124,7 +124,7 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 void setup()
 {
   Serial.begin(115200);
-  
+
   loadPenConfiguration();
 
   // Configure Adafruit motor shield.
@@ -143,12 +143,8 @@ void setup()
   // Look for SD and Touchscreen.
   if (SD.begin(SD_CS))
   {
-     Serial.println("SD card found.");
-
     if (ts.begin(FT6206_THRESSHOLD))
     {
-      Serial.println("Touchscreen found.");
-
       tft.begin();
       tft.setRotation(3);
       tft.fillScreen(ILI9341_WHITE);
@@ -156,15 +152,11 @@ void setup()
       serialMode = false;
 
       // Display Splash Screen
-      ImageReturnCode stat;
-      stat = reader.drawBMP("/splash.bmp", tft, 0, 0);
-      
-      reader.printStatus(stat);
-  
-      delay(7000);
+      ImageReturnCode stat = reader.drawBMP("/splash.bmp", tft, 0, 0);
+
+      delay(SPLASH_SCREEN_DELAY);
 
       // Prompt for operation mode (Serial/USB or SD Card)
-
     }
   }
 
@@ -177,14 +169,21 @@ void setup()
 
 void loop()
 {
-  // Check serial port for character.
-  if (Serial.available() > 0)
+  if (serialMode)
   {
-    if (GCode.AddCharToLine(Serial.read()))
+    // Check serial port for character.
+    if (Serial.available() > 0)
     {
-      GCode.ParseLine();
-      processCommand();
+      if (GCode.AddCharToLine(Serial.read()))
+      {
+        GCode.ParseLine();
+        processCommand();
+      }
     }
+  }
+  else
+  {
+    // SD file
   }
 }
 
@@ -287,13 +286,13 @@ void processCommand()
 
     if (GCode.HasWord('Y'))
     {
-       if (absoluteMode)
+      if (absoluteMode)
         tempY = GCode.GetWordValue('Y') * zoom;
       else
         tempY += GCode.GetWordValue('Y') * zoom;
     }
 
-    if(GCode.HasWord('F'))
+    if (GCode.HasWord('F'))
       feedrate = GCode.GetWordValue('F');
 
     tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
@@ -302,79 +301,79 @@ void processCommand()
 
     switch (codenum)
     {
-      // G00 – Rapid Positioning
-      // The G00 command moves the machine at maximum travel speed from a current position to a
-      // specified point or the coordinates specified by the command. The machine will move all
-      // axis at the same time, so they complete the travel simultaneously. This results in a 
-      // straight-line movement to the new position point.
-      case 0: 
-        steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
-        break;
+    // G00 – Rapid Positioning
+    // The G00 command moves the machine at maximum travel speed from a current position to a
+    // specified point or the coordinates specified by the command. The machine will move all
+    // axis at the same time, so they complete the travel simultaneously. This results in a
+    // straight-line movement to the new position point.
+    case 0:
+      steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
+      break;
 
-      // G01 – Linear Interpolation
-      // The G01 G-code command instructs the machine to move in a straight line at a set feed
-      // rate or speed. We specify the end position with the X, Y and Z values, and the speed 
-      // with the F value. The machine controller calculates (interpolates) the intermediate 
-      // points to pass through to get that straight line. Although these G-code commands are 
-      // simple and quite intuitive to understand, behind them, the machine controller performs
-      // thousands of calculations per second in order to make these movements.
-      case 1:
-        if (currentPenPosition <= penUpPosition)
-          steppers->travelTo(tempX, tempY, feedrate); // Potentially wrap around the sphere if pen is up.
-        else
-          steppers->moveTo(tempX, tempY, feedrate);
-        break;
+    // G01 – Linear Interpolation
+    // The G01 G-code command instructs the machine to move in a straight line at a set feed
+    // rate or speed. We specify the end position with the X, Y and Z values, and the speed
+    // with the F value. The machine controller calculates (interpolates) the intermediate
+    // points to pass through to get that straight line. Although these G-code commands are
+    // simple and quite intuitive to understand, behind them, the machine controller performs
+    // thousands of calculations per second in order to make these movements.
+    case 1:
+      if (currentPenPosition <= penUpPosition)
+        steppers->travelTo(tempX, tempY, feedrate); // Potentially wrap around the sphere if pen is up.
+      else
+        steppers->moveTo(tempX, tempY, feedrate);
+      break;
 
-      // G02 – Circular Interpolation Clockwise
-      // The G02 command tells the machine to move clockwise in a circular pattern. It is the same
-      // concept as the G01 command and it’s used when performing the appropriate machining process.
-      // In addition to the end point parameters, here we also need to define the center of rotation,
-      // or the distance of the arc start point from the center point of the arc. The start point is
-      // actually the end point from the previous command or the current point.
-      case 2: 
-      // G03 – Circular Interpolation Counterclockwise
-      // Just like the G02, the G03 G-code command defines the machine to move in circular pattern.
-      // The only difference here is that the motion is counterclockwise. All other features and rules
-      // are the same as the G02 command.
-      case 3: 
-        if (GCode.HasWord('I') && GCode.HasWord('J'))
-        {
-          double centerX = steppers->xPos() + (GCode.GetWordValue('I') * zoom);
-          double centerY = steppers->yPos() + (GCode.GetWordValue('J') * zoom);
-          drawArc(centerX, centerY, tempX, tempY, (codenum == 2));
-        }
-        else if (GCode.HasWord('R'))
-        {
-          //drawRadius(tempX, tempY, GCode.GetWordValue('R') * zoom, (codenum==2));
-        }
-        break;
+    // G02 – Circular Interpolation Clockwise
+    // The G02 command tells the machine to move clockwise in a circular pattern. It is the same
+    // concept as the G01 command and it’s used when performing the appropriate machining process.
+    // In addition to the end point parameters, here we also need to define the center of rotation,
+    // or the distance of the arc start point from the center point of the arc. The start point is
+    // actually the end point from the previous command or the current point.
+    case 2:
+    // G03 – Circular Interpolation Counterclockwise
+    // Just like the G02, the G03 G-code command defines the machine to move in circular pattern.
+    // The only difference here is that the motion is counterclockwise. All other features and rules
+    // are the same as the G02 command.
+    case 3:
+      if (GCode.HasWord('I') && GCode.HasWord('J'))
+      {
+        double centerX = steppers->xPos() + (GCode.GetWordValue('I') * zoom);
+        double centerY = steppers->yPos() + (GCode.GetWordValue('J') * zoom);
+        drawArc(centerX, centerY, tempX, tempY, (codenum == 2));
+      }
+      else if (GCode.HasWord('R'))
+      {
+        //drawRadius(tempX, tempY, GCode.GetWordValue('R') * zoom, (codenum==2));
+      }
+      break;
 
-      // G04 – Dwell Command
-      // G04 is called the Dwell command because it makes the machine stop what it is doing or dwell
-      // for a specified length of time. It is helpful to be able to dwell during a cutting operation,
-      // and also to facilitate various non-cutting operations of the machine.
-      case 4: // G4 - Delay P milliseconds.
-        if (GCode.HasWord('P'))
-          delay(GCode.GetWordValue('P'));
-        break;
+    // G04 – Dwell Command
+    // G04 is called the Dwell command because it makes the machine stop what it is doing or dwell
+    // for a specified length of time. It is helpful to be able to dwell during a cutting operation,
+    // and also to facilitate various non-cutting operations of the machine.
+    case 4: // G4 - Delay P milliseconds.
+      if (GCode.HasWord('P'))
+        delay(GCode.GetWordValue('P'));
+      break;
 
-      // G90/G91 – Positioning G-code commands
-      // With the G90 and G91 commands we tell the machine how to interpret the coordinates.
-      // G90 is for absolute mode and G91 is for relative mode.
-      //
-      // In absolute mode the positioning of the tool is always from the absolute point or zero.
-      // So, the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the 
-      // previous position.
-      //
-      // On the other hand, in relative mode, the positioning of the tool is relative to the 
-      // last point. So, if the machine is currently at point (10,10), the command G01 X10 Y5 will
-      // take the tool to point (20,15). This mode is also called “incremental mode”.
-      case 90: // G90 - Absolute Positioning.
-        absoluteMode = true;
-        break;
-      case 91: // G91 - Incremental Positioning.
-        absoluteMode = false;
-        break;
+    // G90/G91 – Positioning G-code commands
+    // With the G90 and G91 commands we tell the machine how to interpret the coordinates.
+    // G90 is for absolute mode and G91 is for relative mode.
+    //
+    // In absolute mode the positioning of the tool is always from the absolute point or zero.
+    // So, the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the
+    // previous position.
+    //
+    // On the other hand, in relative mode, the positioning of the tool is relative to the
+    // last point. So, if the machine is currently at point (10,10), the command G01 X10 Y5 will
+    // take the tool to point (20,15). This mode is also called “incremental mode”.
+    case 90: // G90 - Absolute Positioning.
+      absoluteMode = true;
+      break;
+    case 91: // G91 - Incremental Positioning.
+      absoluteMode = false;
+      break;
     }
   }
   else if (GCode.HasWord('M')) // M-Codes
