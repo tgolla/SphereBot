@@ -71,14 +71,17 @@
 #include "Configuration.h"
 #include "GCodeParser.h"
 
+#include <SPI.h>
+#include <Wire.h>
+
+#if ADAFRUIT_TFT_TOUCH_SHIELD
 // Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
 #include <Adafruit_GFX.h>         // Core Graphics Library
-#include <SPI.h>                  // Needed for TFT Display
-#include <Wire.h>                 // Needed for FT6206
 #include <Adafruit_ILI9341.h>     // This contains the low-level code specific to the TFT display.
 #include <SdFat.h>                // SD card & FAT filesystem library.
 #include <Adafruit_FT6206.h>      // Controller library which does all the low level chatting with the FT6206 capacitive touch driver chip.
 #include <Adafruit_ImageReader.h> // Image-reading functions.
+#endif
 
 // DualStepper Library for Adafruit Motor Shield
 #include "DualStepper.h"
@@ -131,12 +134,14 @@ boolean serialMode = true;
 
 GCodeParser GCode = GCodeParser();
 
+#if ADAFRUIT_TFT_TOUCH_SHIELD
 SdFat SD;                        // SD card filesystem.
 Adafruit_ImageReader reader(SD); // Image-reader object, pass in SD.
 
 // Instantiate class for TFT screen and Touchscreen
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 Adafruit_FT6206 ts = Adafruit_FT6206();
+#endif
 
 void setup()
 {
@@ -157,6 +162,7 @@ void setup()
   servoWrite(penUpPosition);
   currentPenPosition = penUpPosition;
 
+#if ADAFRUIT_TFT_TOUCH_SHIELD
   // Look for SD and Touchscreen.
   if (SD.begin(SD_CS))
   {
@@ -176,6 +182,7 @@ void setup()
       // Prompt for operation mode (Serial/USB or SD Card)
     }
   }
+#endif
 
   if (serialMode)
   {
@@ -198,10 +205,13 @@ void loop()
       }
     }
   }
+#if ADAFRUIT_TFT_TOUCH_SHIELD
   else
   {
     // SD file
+
   }
+#endif
 }
 
 // Loads the pen configuration from memory.

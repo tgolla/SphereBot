@@ -18,6 +18,11 @@
 #ifndef Configuration_h
 #define Configuration_h
 
+// Set to true you are using an Adafruit 2.8" TFT Touch Shield for 
+// Arduino w/Capacitive Touch with an Arduino Mega 2560 Note: A Mega
+// 2560 is required due to the memory requirements.  
+#define ADAFRUIT_TFT_TOUCH_SHIELD false
+
 // Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
 // The display uses hardware SPI, plus #9 & #10.
 #define TFT_CS 10
