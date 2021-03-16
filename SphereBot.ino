@@ -40,12 +40,27 @@
  *   - A true to G-Code specification parser was added. The class was developed using Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
  *     and the Microsoft Unit Testing Framework for C++ (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
  * 
+ *   - Added new M-Codes that allow for increased flexablity processing G-Code files.
+ *       M304 - Sets the pen down position needed for new AdjustedM mode.
+ * 
  * This sketch needs the following non-standard library (install it in the Arduino library directory):
  *
  * Adafruit Motor Shield (select appropriate version ):
  *   v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
  *   v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
  *
+ * Adafruit ILI9341 Arduino Library
+ *   https://github.com/adafruit/Adafruit_ILI9341
+ * 
+ * Adafruit GFX Library
+ *   https://github.com/adafruit/Adafruit-GFX-Library
+ * 
+ * Adafruit ImageReader Arduino Library
+ *   https://github.com/adafruit/Adafruit_ImageReader
+ * 
+ * Adafruit_FT6206 Library
+ *   https://github.com/adafruit/Adafruit_FT6206_Library
+ * 
  * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file.
  *
  * text section exceeds available space in board
@@ -79,15 +94,17 @@ enum
   VALUES_SAVED_EEPROM_LOCATION,
   MIN_PEN_EEPROM_LOCATION,
   MAX_PEN_EEPROM_LOCATION,
-  PEN_UP_EEPROM_LOCATION
+  PEN_UP_EEPROM_LOCATION,
+  PEN_DOWN_EEPROM_LOCATION
 };
 
 // Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
-#define EEPROM_MAGIC_NUMBER 53
+#define EEPROM_MAGIC_NUMBER 23
 
 byte minPenPosition;
 byte maxPenPosition;
 byte penUpPosition;
+byte penDownPosition;
 byte currentPenPosition;
 
 // Set up stepper motors and servo.
@@ -196,12 +213,14 @@ void loadPenConfiguration()
     minPenPosition = EEPROM.read(MIN_PEN_EEPROM_LOCATION);
     maxPenPosition = EEPROM.read(MAX_PEN_EEPROM_LOCATION);
     penUpPosition = EEPROM.read(PEN_UP_EEPROM_LOCATION);
+    penDownPosition = EEPROM.read(PEN_DOWN_EEPROM_LOCATION);
   }
   else
   {
     minPenPosition = MIN_PEN_POSITION;
     maxPenPosition = MAX_PEN_POSITION;
     penUpPosition = PEN_UP_POSITION;
+    penDownPosition = PEN_DOWN_POSITION;
   }
 }
 
@@ -211,6 +230,7 @@ void savePenConfiguration()
   EEPROM.update(MIN_PEN_EEPROM_LOCATION, minPenPosition);
   EEPROM.update(MAX_PEN_EEPROM_LOCATION, maxPenPosition);
   EEPROM.update(PEN_UP_EEPROM_LOCATION, penUpPosition);
+  EEPROM.update(PEN_DOWN_EEPROM_LOCATION, penDownPosition);
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, EEPROM_MAGIC_NUMBER);
 }
 
@@ -220,6 +240,7 @@ void clearPenConfiguration()
   minPenPosition = MIN_PEN_POSITION;
   maxPenPosition = MAX_PEN_POSITION;
   penUpPosition = PEN_UP_POSITION;
+  penDownPosition = PEN_DOWN_POSITION;
   EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, 0xff);
 }
 
@@ -414,6 +435,11 @@ void processCommand()
     case 303: // M303 - Set default pen up position.
       if (GCode.HasWord('P'))
         penUpPosition = GCode.GetWordValue('P');
+      break;
+
+    case 304: // M304 - Set default pen down position.
+      if (GCode.HasWord('P'))
+        penDownPosition = GCode.GetWordValue('P');
       break;
 
     case 402: // M402 - Set global zoom factor.

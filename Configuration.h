@@ -70,8 +70,9 @@
 #define MIN_PEN_POSITION      100
 #define MAX_PEN_POSITION      160
 
-// Default pen up position.
+// Default pen up/down positions.
 #define PEN_UP_POSITION       145
+#define PEN_DOWN_POSITION     125
 
 // How long to take for pen down moves in ms.
 #define PEN_DOWN_MOVE_TIME    200
