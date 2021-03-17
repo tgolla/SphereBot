@@ -129,10 +129,20 @@ byte penFeedrateEEPROMMemoryLocation = xyFeedrateEEPROMMemoryLocation + sizeof(x
 #define EEPROM_MAGIC_NUMBER 23
 
 // Enum used with mzMode.
-enum { M, Z, Auto };
+enum
+{
+  M,
+  Z,
+  Auto
+};
 
 // Enum used with mAdjust and zAdjust.
-enum { Off, Preset, Calculated };
+enum
+{
+  Off,
+  Preset,
+  Calculated
+};
 
 // Set up stepper motors and servo.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
@@ -232,7 +242,6 @@ void loop()
   else
   {
     // SD file
-
   }
 #endif
 }
@@ -282,8 +291,8 @@ void savePenConfiguration()
   EEPROM.update(mAdjustEEPROMMemoryLocation, mAdjust);
   EEPROM.update(zAdjustEEPROMMemoryLocation, zAdjust);
   EEPROM.update(mAdjustPresetEEPROMMemoryLocation, mAdjustPreset);
-  EEPROM.update(zAdjustPresetEEPROMMemoryLocation,zAdjustPreset);
-  EEPROM.update(xyFeedrateEEPROMMemoryLocation,xyFeedrate);
+  EEPROM.update(zAdjustPresetEEPROMMemoryLocation, zAdjustPreset);
+  EEPROM.update(xyFeedrateEEPROMMemoryLocation, xyFeedrate);
   EEPROM.update(penFeedrateEEPROMMemoryLocation, penFeedrate);
 
   EEPROM.update(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
@@ -314,7 +323,7 @@ void movePen(byte toPosition)
   if (toPosition > currentPenPosition)
   {
     // Ease it down.
-    int penDelay = DEFAULT_PEN_FEEDRATE / 10;
+    int penDelay = penFeedrate / 10;
     float penIncrement = (toPosition - currentPenPosition) / 10.0;
 
     // Loop takes it to one step less than full travel.
@@ -347,33 +356,46 @@ void processCommand()
 {
   if (GCode.HasWord('G')) // G-Codes
   {
+    int gCodeNumber = (int)GCode.GetWordValue('G');
+
     double tempX = steppers->xPos();
     double tempY = steppers->yPos();
-
-    if (GCode.HasWord('X'))
+    
+    if (gCodeNumber>=0 && gCodeNumber <=3) //G0, G1, G2, G3
     {
-      if (absoluteMode)
-        tempX = GCode.GetWordValue('X') * zoom;
-      else
-        tempX += GCode.GetWordValue('X') * zoom;
+      if (GCode.HasWord('X'))
+      {
+        if (absoluteMode)
+          tempX = GCode.GetWordValue('X') * zoom;
+        else
+          tempX += GCode.GetWordValue('X') * zoom;
+      }
+
+      if (GCode.HasWord('Y'))
+      {
+        if (absoluteMode)
+          tempY = GCode.GetWordValue('Y') * zoom;
+        else
+          tempY += GCode.GetWordValue('Y') * zoom;
+      }
+
+      if (GCode.HasWord('F'))
+      {
+        if (GCode.HasWord('X') || GCode.HasWord('Y'))
+        {
+          xyFeedrate = GCode.GetWordValue('F');
+        }
+        else
+        {
+          if (GCode.HasWord('Z'))
+            penFeedrate = GCode.GetWordValue('F');
+        }
+      }
+
+      tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
     }
 
-    if (GCode.HasWord('Y'))
-    {
-      if (absoluteMode)
-        tempY = GCode.GetWordValue('Y') * zoom;
-      else
-        tempY += GCode.GetWordValue('Y') * zoom;
-    }
-
-    if (GCode.HasWord('F'))
-      xyFeedrate = GCode.GetWordValue('F');
-
-    tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
-
-    int codenum = (int)GCode.GetWordValue('G');
-
-    switch (codenum)
+    switch (gCodeNumber)
     {
     // G00 – Rapid Positioning
     // The G00 command moves the machine at maximum travel speed from a current position to a
@@ -414,11 +436,11 @@ void processCommand()
       {
         double centerX = steppers->xPos() + (GCode.GetWordValue('I') * zoom);
         double centerY = steppers->yPos() + (GCode.GetWordValue('J') * zoom);
-        drawArc(centerX, centerY, tempX, tempY, (codenum == 2));
+        drawArc(centerX, centerY, tempX, tempY, (gCodeNumber == 2));
       }
       else if (GCode.HasWord('R'))
       {
-        //drawRadius(tempX, tempY, GCode.GetWordValue('R') * zoom, (codenum==2));
+        //drawRadius(tempX, tempY, GCode.GetWordValue('R') * zoom, (gCodeNumber==2));
       }
       break;
 
@@ -452,9 +474,11 @@ void processCommand()
   }
   else if (GCode.HasWord('M')) // M-Codes
   {
+    int mCodeNumber = (int)GCode.GetWordValue('M');
+
     double value;
-    int codenum = (int)GCode.GetWordValue('M');
-    switch (codenum)
+    
+    switch (mCodeNumber)
     {
     case 18: // M18 - Disable all stepper motors
       xStepper->release();
@@ -462,6 +486,10 @@ void processCommand()
       break;
 
     case 300: // M300 - Set pen (servo) position.
+      if (GCode.HasWord('F'))
+      {
+        penFeedrate = GCode.GetWordValue('F');
+      }
       if (GCode.HasWord('S'))
       {
         value = GCode.GetWordValue('S');
@@ -497,13 +525,13 @@ void processCommand()
 
     // M305 - Sets the G-Code responsible for operating the pen servo.  P0 - M300 sets
     // the pen height. P1 - G0, G1, G2 & G3 Z parameter is responsible for setting the pen height.
-    // P2 - Automatically detects which code is responsible for setting the pen height. 
-    case 305: 
+    // P2 - Automatically detects which code is responsible for setting the pen height.
+    case 305:
       if (GCode.HasWord('P'))
         mzMode = GCode.GetWordValue('P');
       break;
- 
-    case 306:  // M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+
+    case 306: // M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
       if (GCode.HasWord('P'))
         mAdjust = GCode.GetWordValue('P');
       break;
