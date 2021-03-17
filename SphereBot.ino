@@ -91,24 +91,21 @@
 
 #include <EEPROM.h>
 
-// Enum used to assign EEPROM memory locations for pen setting.  i.e. 0, 1, 2, 3
-enum
-{
-  VALUES_SAVED_EEPROM_LOCATION,
-  MIN_PEN_EEPROM_LOCATION,
-  MAX_PEN_EEPROM_LOCATION,
-  PEN_UP_EEPROM_LOCATION,
-  PEN_DOWN_EEPROM_LOCATION
-};
-
-// Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
-#define EEPROM_MAGIC_NUMBER 23
-
 byte minPenPosition;
 byte maxPenPosition;
 byte penUpPosition;
 byte penDownPosition;
 byte currentPenPosition;
+
+// EEPROM memory locations.
+byte valueSavedEEPROMMemoryLocation = 0;
+byte minPenEEPROMMemoryLocation = 1;
+byte maxPenEEPROMMemoryLocation = minPenEEPROMMemoryLocation + sizeof(minPenPosition);
+byte penUpEEPROMMemoryLocation = maxPenEEPROMMemoryLocation + sizeof(maxPenPosition);
+byte penDownEEPROMMemoryLocation = penUpEEPROMMemoryLocation + sizeof(penUpPosition);
+
+// Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
+#define EEPROM_MAGIC_NUMBER 23
 
 // Set up stepper motors and servo.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
@@ -218,12 +215,12 @@ void loop()
 void loadPenConfiguration()
 {
   // Check EEPROM location 0 for presence of a magic number. If it's there, we have saved pen settings.
-  if (EEPROM.read(VALUES_SAVED_EEPROM_LOCATION) == EEPROM_MAGIC_NUMBER)
+  if (EEPROM.read(valueSavedEEPROMMemoryLocation) == EEPROM_MAGIC_NUMBER)
   {
-    minPenPosition = EEPROM.read(MIN_PEN_EEPROM_LOCATION);
-    maxPenPosition = EEPROM.read(MAX_PEN_EEPROM_LOCATION);
-    penUpPosition = EEPROM.read(PEN_UP_EEPROM_LOCATION);
-    penDownPosition = EEPROM.read(PEN_DOWN_EEPROM_LOCATION);
+    minPenPosition = EEPROM.read(minPenEEPROMMemoryLocation);
+    maxPenPosition = EEPROM.read(maxPenEEPROMMemoryLocation);
+    penUpPosition = EEPROM.read(penUpEEPROMMemoryLocation);
+    penDownPosition = EEPROM.read(penDownEEPROMMemoryLocation);
   }
   else
   {
@@ -237,11 +234,11 @@ void loadPenConfiguration()
 // Saves the pen configuration to memeoy.
 void savePenConfiguration()
 {
-  EEPROM.update(MIN_PEN_EEPROM_LOCATION, minPenPosition);
-  EEPROM.update(MAX_PEN_EEPROM_LOCATION, maxPenPosition);
-  EEPROM.update(PEN_UP_EEPROM_LOCATION, penUpPosition);
-  EEPROM.update(PEN_DOWN_EEPROM_LOCATION, penDownPosition);
-  EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, EEPROM_MAGIC_NUMBER);
+  EEPROM.update(minPenEEPROMMemoryLocation, minPenPosition);
+  EEPROM.update(maxPenEEPROMMemoryLocation, maxPenPosition);
+  EEPROM.update(penUpEEPROMMemoryLocation, penUpPosition);
+  EEPROM.update(penDownEEPROMMemoryLocation, penDownPosition);
+  EEPROM.update(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
 }
 
 // Clears the pen configuration from memory.
@@ -251,7 +248,7 @@ void clearPenConfiguration()
   maxPenPosition = MAX_PEN_POSITION;
   penUpPosition = PEN_UP_POSITION;
   penDownPosition = PEN_DOWN_POSITION;
-  EEPROM.update(VALUES_SAVED_EEPROM_LOCATION, 0xff);
+  EEPROM.update(valueSavedEEPROMMemoryLocation, 0xff);
 }
 
 // Corrects servo value if servo has been install reversed.
