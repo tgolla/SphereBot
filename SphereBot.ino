@@ -40,18 +40,18 @@
  *   - A true to G-Code specification parser was added. The class was developed using Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
  *     and the Microsoft Unit Testing Framework for C++ (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
  * 
- *   - Added the following new M-Codes to allow for increased flexablity processing G-Code files. 
+ *   - Added the following new M-Codes to allow for increased flexablity controlling the pen servo. 
  *  
  *       M304 - Sets the pen down position needed for new AdjustedM mode.
- *       M305 - Sets the G-Code responsible for operating the pen servo.  0 - M300 sets
- *              the pen height. 1 - G1, G2 & G3 Z parameter is responsible for setting the pen height.
- *              2 - Automatically detects which code is responsible for setting the pen height. 
- *       M306 - Sets the M300 height adjustment. 0 - Off, 1 - Absolute, 2 - Adjusted
- *       M307 - Sets the Z height adjustment. 0 - Off, 1 - Absolute, 2 - Adjusted
+ *       M305 - Sets the G-Code responsible for operating the pen servo.  P0 - M300 sets
+ *              the pen height. P1 - G0, G1, G2 & G3 Z parameter is responsible for setting the pen height.
+ *              P2 - Automatically detects which code is responsible for setting the pen height. 
+ *       M306 - Sets the M300 height adjustment. P0 - Off, P1 - Absolute, P2 - Adjusted
+ *       M307 - Sets the Z height adjustment. P0 - Off, P1 - Absolute, P2 - Adjusted
  *       M308 - Sets the M300 pen up threshold. S values less than the value move the pen down.
  *       M309 - Sets the Z pen up threshold. Z values less than the value move the pen down.
  * 
- *   - Added the ability to set the Z-axis (pen height) with the M300 or G1, G2 & G3 codes.
+ *   - Added the ability to set the pen feedrate with the M300 or G1, G2 & G3 codes.
  * 
  * This sketch needs the non-standard library (install it in the Arduino library directory):
  *
@@ -103,17 +103,35 @@ byte penUpPosition;
 byte penDownPosition;
 byte currentPenPosition;
 
+byte mzMode;
+byte mAdjust;
+byte zAdjust;
+byte mAdjustmentThreshold;
+byte zAdjustmentThreshold;
+double xyFeedrate;
+double penFeedrate;
+
 // EEPROM memory locations.
 byte valueSavedEEPROMMemoryLocation = 0;
 byte minPenEEPROMMemoryLocation = 1;
 byte maxPenEEPROMMemoryLocation = minPenEEPROMMemoryLocation + sizeof(minPenPosition);
 byte penUpEEPROMMemoryLocation = maxPenEEPROMMemoryLocation + sizeof(maxPenPosition);
 byte penDownEEPROMMemoryLocation = penUpEEPROMMemoryLocation + sizeof(penUpPosition);
+byte mzModeEEPROMMemoryLocation = penDownEEPROMMemoryLocation + sizeof(penDownPosition);
+byte mAdjustEEPROMMemoryLocation = mzModeEEPROMMemoryLocation + sizeof(mzMode);
+byte zAdjustEEPROMMemoryLocation = mAdjustEEPROMMemoryLocation + sizeof(mAdjust);
+byte mAdjustmentThresholdEEPROMMemoryLocation = zAdjustEEPROMMemoryLocation + sizeof(zAdjust);
+byte zAdjustmentThresholdEEPROMMemoryLocation = mAdjustmentThresholdEEPROMMemoryLocation + sizeof(mAdjustmentThreshold);
+byte xyFeedrateEEPROMMemoryLocation = zAdjustmentThresholdEEPROMMemoryLocation + sizeof(zAdjustmentThreshold);
+byte penFeedrateEEPROMMemoryLocation = xyFeedrateEEPROMMemoryLocation + sizeof(xyFeedrate);
 
 // Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
 #define EEPROM_MAGIC_NUMBER 23
 
-// Enum used with MAdjusted and ZAdjusted.
+// Enum used with mzMode.
+enum { M, Z, Auto };
+
+// Enum used with mAdjust and zAdjust.
 enum { Off, Absolute, Average};
 
 // Set up stepper motors and servo.
@@ -132,7 +150,6 @@ Servo servo;
 
 // GCode states.
 boolean absoluteMode = true;
-double xyFeedrate = DEFAULT_XY_FEEDRATE; // steps/second
 double zoom = DEFAULT_ZOOM_FACTOR;
 
 // Defaults to Serial port for GCode if SD and Touchscreen are not present.
@@ -230,6 +247,13 @@ void loadPenConfiguration()
     maxPenPosition = EEPROM.read(maxPenEEPROMMemoryLocation);
     penUpPosition = EEPROM.read(penUpEEPROMMemoryLocation);
     penDownPosition = EEPROM.read(penDownEEPROMMemoryLocation);
+    mzMode = EEPROM.read(mzModeEEPROMMemoryLocation);
+    mAdjust = EEPROM.read(mAdjustEEPROMMemoryLocation);
+    zAdjust = EEPROM.read(zAdjustEEPROMMemoryLocation);
+    mAdjustmentThreshold = EEPROM.read(mAdjustmentThresholdEEPROMMemoryLocation);
+    zAdjustmentThreshold = EEPROM.read(zAdjustmentThresholdEEPROMMemoryLocation);
+    xyFeedrate = EEPROM.read(xyFeedrateEEPROMMemoryLocation);
+    penFeedrate = EEPROM.read(penFeedrateEEPROMMemoryLocation);
   }
   else
   {
@@ -237,6 +261,13 @@ void loadPenConfiguration()
     maxPenPosition = MAX_PEN_POSITION;
     penUpPosition = DEFAULT_PEN_UP_POSITION;
     penDownPosition = DEFAULT_PEN_DOWN_POSITION;
+    mzMode = DEFAULT_MZ_MODE;
+    mAdjust = DEFAULT_M_ADJUST;
+    zAdjust = DEFAULT_Z_ADJUST;
+    mAdjustmentThreshold = DEFAULT_M_ADJUSTMENT_THRESHOLD;
+    zAdjustmentThreshold = DEFAULT_Z_ADJUSTMENT_THRESHOLD;
+    xyFeedrate = DEFAULT_XY_FEEDRATE;
+    penFeedrate = DEFAULT_PEN_FEEDRATE;
   }
 }
 
@@ -247,17 +278,23 @@ void savePenConfiguration()
   EEPROM.update(maxPenEEPROMMemoryLocation, maxPenPosition);
   EEPROM.update(penUpEEPROMMemoryLocation, penUpPosition);
   EEPROM.update(penDownEEPROMMemoryLocation, penDownPosition);
+  EEPROM.update(mzModeEEPROMMemoryLocation, mzMode);
+  EEPROM.update(mAdjustEEPROMMemoryLocation, mAdjust);
+  EEPROM.update(zAdjustEEPROMMemoryLocation, zAdjust);
+  EEPROM.update(mAdjustmentThresholdEEPROMMemoryLocation, mAdjustmentThreshold);
+  EEPROM.update(zAdjustmentThresholdEEPROMMemoryLocation,zAdjustmentThreshold);
+  EEPROM.update(xyFeedrateEEPROMMemoryLocation,xyFeedrate);
+  EEPROM.update(penFeedrateEEPROMMemoryLocation, penFeedrate);
+
   EEPROM.update(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
 }
 
 // Clears the pen configuration from memory.
 void clearPenConfiguration()
 {
-  minPenPosition = MIN_PEN_POSITION;
-  maxPenPosition = MAX_PEN_POSITION;
-  penUpPosition = DEFAULT_PEN_UP_POSITION;
-  penDownPosition = DEFAULT_PEN_DOWN_POSITION;
   EEPROM.update(valueSavedEEPROMMemoryLocation, 0xff);
+
+  loadPenConfiguration();
 }
 
 // Corrects servo value if servo has been install reversed.

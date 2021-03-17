@@ -20,6 +20,49 @@
 #ifndef Configuration_h
 #define Configuration_h
 
+// Default settings of M and Z code modes to allow for increased 
+// flexablity controlling the pen servo. 
+
+// MZ Mode
+// 0 - M mode allows for normal pen control using M300 commands.
+// 1 - Z mode allows for pen control using G0, G1, G2 & G3 Z code parameter.
+// 2 - Auto mode scans the file on the SD to automatically set the active MZ mode 
+//     to either M or Z mode. When using the serial USB port the active mode 
+//     defaults to M mode.
+#define DEFAULT_MZ_MODE 0
+
+// The M Adjusted mode allows for the M300 S code parameter to be adjusted.  This 
+// allows the for use of G-Code files that have been calibrated to use on other SphereBots.
+// 0 - Off does not adjust the S code value.
+// 1 - Absolute threshold is determined by taking the maximun S code value as the pen up position
+//     and adjusting it to the pen up setting. All other values are adjusted to the pen
+//     down seting.
+// 2 - Average threshold is determined by averaging the maximun and minimun S code values to
+//     adjust all S values below the average to the pen down setting and all value
+//     equal or above to the pen up setting.  
+#define DEFAULT_M_ADJUST 0
+
+// The Z Adjusted mode allows for the G0, G1, G2 & G3 Z code parameter to be adjusted.  
+// This allows for the use of G-Code files that have been calibrated to use on other SphereBots.
+// 0 - Off does not adjust the Z code value.
+// 1 - Absolute threshold is determined by taking the maximun Z code value as the pen up position
+//     and adjusting it to the pen up setting. All other values are adjusted to the pen
+//     down seting.
+// 2 - Average threshold is determined by averaging the maximun and minimun Z code values to
+//     adjust all S values below the average to the pen down setting and all value
+//     equal or above to the pen up setting.  
+#define DEFAULT_Z_ADJUST 0
+
+// If in serial USB mode the G-Code cannot be preprocessed (scanned) for maximun and minimun 
+// values to set the absolute or average adjustment threshold. In this case the following 
+// default is used for M300 commands. The value can also be set with the M308 command.
+#define DEFAULT_M_ADJUSTMENT_THRESHOLD 145
+
+// If in serial USB mode the G-Code cannot be preprocessed (scanned) for maximun and minimun 
+// values to set the absolute or average adjustment threshold. In this case the following 
+// default is used for G0, G1, G2, & G3 Z parameters. The value can also be set with the M309 command.
+#define DEFAULT_Z_ADJUSTMENT_THRESHOLD 5
+
 // Set to true you are using an Adafruit 2.8" TFT Touch Shield for 
 // Arduino w/Capacitive Touch with an Arduino Mega 2560 Note: A Mega
 // 2560 is required due to the memory requirements.  
