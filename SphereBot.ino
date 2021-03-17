@@ -46,12 +46,12 @@
  *       M305 - Sets the G-Code responsible for operating the pen servo.  P0 - M300 sets
  *              the pen height. P1 - G0, G1, G2 & G3 Z parameter is responsible for setting the pen height.
  *              P2 - Automatically detects which code is responsible for setting the pen height. 
- *       M306 - Sets the M300 height adjustment. P0 - Off, P1 - Absolute, P2 - Adjusted
- *       M307 - Sets the Z height adjustment. P0 - Off, P1 - Absolute, P2 - Adjusted
- *       M308 - Sets the M300 pen up threshold. S values less than the value move the pen down.
- *       M309 - Sets the Z pen up threshold. Z values less than the value move the pen down.
+ *       M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+ *       M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+ *       M308 - Sets the M300 pen up preset value. S values less than the value move the pen down.
+ *       M309 - Sets the Z pen up preset value. Z values less than the value move the pen down.
  * 
- *   - Added the ability to set the pen feedrate with the M300 or G1, G2 & G3 codes.
+ *   - Added the ability to set the pen feedrate with the M300 or G1, G2 & G3 codes with only Z values.
  * 
  * This sketch needs the non-standard library (install it in the Arduino library directory):
  *
@@ -106,8 +106,8 @@ byte currentPenPosition;
 byte mzMode;
 byte mAdjust;
 byte zAdjust;
-byte mAdjustmentThreshold;
-byte zAdjustmentThreshold;
+byte mAdjustPreset;
+byte zAdjustPreset;
 double xyFeedrate;
 double penFeedrate;
 
@@ -120,9 +120,9 @@ byte penDownEEPROMMemoryLocation = penUpEEPROMMemoryLocation + sizeof(penUpPosit
 byte mzModeEEPROMMemoryLocation = penDownEEPROMMemoryLocation + sizeof(penDownPosition);
 byte mAdjustEEPROMMemoryLocation = mzModeEEPROMMemoryLocation + sizeof(mzMode);
 byte zAdjustEEPROMMemoryLocation = mAdjustEEPROMMemoryLocation + sizeof(mAdjust);
-byte mAdjustmentThresholdEEPROMMemoryLocation = zAdjustEEPROMMemoryLocation + sizeof(zAdjust);
-byte zAdjustmentThresholdEEPROMMemoryLocation = mAdjustmentThresholdEEPROMMemoryLocation + sizeof(mAdjustmentThreshold);
-byte xyFeedrateEEPROMMemoryLocation = zAdjustmentThresholdEEPROMMemoryLocation + sizeof(zAdjustmentThreshold);
+byte mAdjustPresetEEPROMMemoryLocation = zAdjustEEPROMMemoryLocation + sizeof(zAdjust);
+byte zAdjustPresetEEPROMMemoryLocation = mAdjustPresetEEPROMMemoryLocation + sizeof(mAdjustPreset);
+byte xyFeedrateEEPROMMemoryLocation = zAdjustPresetEEPROMMemoryLocation + sizeof(zAdjustPreset);
 byte penFeedrateEEPROMMemoryLocation = xyFeedrateEEPROMMemoryLocation + sizeof(xyFeedrate);
 
 // Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
@@ -132,7 +132,7 @@ byte penFeedrateEEPROMMemoryLocation = xyFeedrateEEPROMMemoryLocation + sizeof(x
 enum { M, Z, Auto };
 
 // Enum used with mAdjust and zAdjust.
-enum { Off, Absolute, Average};
+enum { Off, Preset, Calculated };
 
 // Set up stepper motors and servo.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
@@ -250,8 +250,8 @@ void loadPenConfiguration()
     mzMode = EEPROM.read(mzModeEEPROMMemoryLocation);
     mAdjust = EEPROM.read(mAdjustEEPROMMemoryLocation);
     zAdjust = EEPROM.read(zAdjustEEPROMMemoryLocation);
-    mAdjustmentThreshold = EEPROM.read(mAdjustmentThresholdEEPROMMemoryLocation);
-    zAdjustmentThreshold = EEPROM.read(zAdjustmentThresholdEEPROMMemoryLocation);
+    mAdjustPreset = EEPROM.read(mAdjustPresetEEPROMMemoryLocation);
+    zAdjustPreset = EEPROM.read(zAdjustPresetEEPROMMemoryLocation);
     xyFeedrate = EEPROM.read(xyFeedrateEEPROMMemoryLocation);
     penFeedrate = EEPROM.read(penFeedrateEEPROMMemoryLocation);
   }
@@ -264,8 +264,8 @@ void loadPenConfiguration()
     mzMode = DEFAULT_MZ_MODE;
     mAdjust = DEFAULT_M_ADJUST;
     zAdjust = DEFAULT_Z_ADJUST;
-    mAdjustmentThreshold = DEFAULT_M_ADJUSTMENT_THRESHOLD;
-    zAdjustmentThreshold = DEFAULT_Z_ADJUSTMENT_THRESHOLD;
+    mAdjustPreset = DEFAULT_M_ADJUST_PRESET;
+    zAdjustPreset = DEFAULT_Z_ADJUST_PRESET;
     xyFeedrate = DEFAULT_XY_FEEDRATE;
     penFeedrate = DEFAULT_PEN_FEEDRATE;
   }
@@ -281,8 +281,8 @@ void savePenConfiguration()
   EEPROM.update(mzModeEEPROMMemoryLocation, mzMode);
   EEPROM.update(mAdjustEEPROMMemoryLocation, mAdjust);
   EEPROM.update(zAdjustEEPROMMemoryLocation, zAdjust);
-  EEPROM.update(mAdjustmentThresholdEEPROMMemoryLocation, mAdjustmentThreshold);
-  EEPROM.update(zAdjustmentThresholdEEPROMMemoryLocation,zAdjustmentThreshold);
+  EEPROM.update(mAdjustPresetEEPROMMemoryLocation, mAdjustPreset);
+  EEPROM.update(zAdjustPresetEEPROMMemoryLocation,zAdjustPreset);
   EEPROM.update(xyFeedrateEEPROMMemoryLocation,xyFeedrate);
   EEPROM.update(penFeedrateEEPROMMemoryLocation, penFeedrate);
 
@@ -493,6 +493,34 @@ void processCommand()
     case 304: // M304 - Set default pen down position.
       if (GCode.HasWord('P'))
         penDownPosition = GCode.GetWordValue('P');
+      break;
+
+    // M305 - Sets the G-Code responsible for operating the pen servo.  P0 - M300 sets
+    // the pen height. P1 - G0, G1, G2 & G3 Z parameter is responsible for setting the pen height.
+    // P2 - Automatically detects which code is responsible for setting the pen height. 
+    case 305: 
+      if (GCode.HasWord('P'))
+        mzMode = GCode.GetWordValue('P');
+      break;
+ 
+    case 306:  // M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+      if (GCode.HasWord('P'))
+        mAdjust = GCode.GetWordValue('P');
+      break;
+
+    case 307: // M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+      if (GCode.HasWord('P'))
+        zAdjust = GCode.GetWordValue('P');
+      break;
+
+    case 308: // M308 - Sets the M300 pen up preset value. S values less than the value move the pen down.
+      if (GCode.HasWord('P'))
+        mAdjustPreset = GCode.GetWordValue('P');
+      break;
+
+    case 309: // M309 - Sets the Z pen up preset value. Z values less than the value move the pen down.
+      if (GCode.HasWord('P'))
+        zAdjustPreset = GCode.GetWordValue('P');
       break;
 
     case 402: // M402 - Set global zoom factor.
