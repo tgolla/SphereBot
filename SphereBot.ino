@@ -40,10 +40,20 @@
  *   - A true to G-Code specification parser was added. The class was developed using Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
  *     and the Microsoft Unit Testing Framework for C++ (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
  * 
- *   - Added new M-Codes that allow for increased flexablity processing G-Code files.
+ *   - Added the following new M-Codes to allow for increased flexablity processing G-Code files. 
+ *  
  *       M304 - Sets the pen down position needed for new AdjustedM mode.
+ *       M305 - Sets the G-Code responsible for operating the pen servo.  0 - M300 sets
+ *              the pen height. 1 - G1, G2 & G3 Z parameter is responsible for setting the pen height.
+ *              2 - Automatically detects which code is responsible for setting the pen height. 
+ *       M306 - Sets the M300 height adjustment. 0 - Off, 1 - Absolute, 2 - Adjusted
+ *       M307 - Sets the Z height adjustment. 0 - Off, 1 - Absolute, 2 - Adjusted
+ *       M308 - Sets the M300 pen up threshold. S values less than the value move the pen down.
+ *       M309 - Sets the Z pen up threshold. Z values less than the value move the pen down.
  * 
- * This sketch needs the following non-standard library (install it in the Arduino library directory):
+ *   - Added the ability to set the Z-axis (pen height) with the M300 or G1, G2 & G3 codes.
+ * 
+ * This sketch needs the non-standard library (install it in the Arduino library directory):
  *
  * Adafruit Motor Shield (select appropriate version ):
  *   v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
@@ -61,11 +71,7 @@
  * Adafruit_FT6206 Library
  *   https://github.com/adafruit/Adafruit_FT6206_Library
  * 
- * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file.
- *
- * text section exceeds available space in board
- * Sketch uses 32278 bytes (100%) of program storage space. Maximum is 32256 bytes.
- * Global variables use 1703 bytes (83%) of dynamic memory, leaving 345 bytes for local variables. Maximum is 2048 bytes.
+ * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file. 
  */
 
 #include "Configuration.h"
@@ -107,6 +113,9 @@ byte penDownEEPROMMemoryLocation = penUpEEPROMMemoryLocation + sizeof(penUpPosit
 // Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
 #define EEPROM_MAGIC_NUMBER 23
 
+// Enum used with MAdjusted and ZAdjusted.
+enum { Off, Absolute, Average};
+
 // Set up stepper motors and servo.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
 SingleStepper *xStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
@@ -123,7 +132,7 @@ Servo servo;
 
 // GCode states.
 boolean absoluteMode = true;
-double feedrate = 160.0; // steps/second
+double xyFeedrate = DEFAULT_XY_FEEDRATE; // steps/second
 double zoom = DEFAULT_ZOOM_FACTOR;
 
 // Defaults to Serial port for GCode if SD and Touchscreen are not present.
@@ -152,7 +161,7 @@ void setup()
   TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
 #endif
 
-  steppers->setMaxSpeed(MAX_FEEDRATE);
+  steppers->setMaxSpeed(MAX_XY_FEEDRATE);
 
   // Configure pen servo.
   servo.attach(SERVO_PIN);
@@ -226,8 +235,8 @@ void loadPenConfiguration()
   {
     minPenPosition = MIN_PEN_POSITION;
     maxPenPosition = MAX_PEN_POSITION;
-    penUpPosition = PEN_UP_POSITION;
-    penDownPosition = PEN_DOWN_POSITION;
+    penUpPosition = DEFAULT_PEN_UP_POSITION;
+    penDownPosition = DEFAULT_PEN_DOWN_POSITION;
   }
 }
 
@@ -246,8 +255,8 @@ void clearPenConfiguration()
 {
   minPenPosition = MIN_PEN_POSITION;
   maxPenPosition = MAX_PEN_POSITION;
-  penUpPosition = PEN_UP_POSITION;
-  penDownPosition = PEN_DOWN_POSITION;
+  penUpPosition = DEFAULT_PEN_UP_POSITION;
+  penDownPosition = DEFAULT_PEN_DOWN_POSITION;
   EEPROM.update(valueSavedEEPROMMemoryLocation, 0xff);
 }
 
@@ -268,7 +277,7 @@ void movePen(byte toPosition)
   if (toPosition > currentPenPosition)
   {
     // Ease it down.
-    int penDelay = PEN_DOWN_MOVE_TIME / 10;
+    int penDelay = DEFAULT_PEN_FEEDRATE / 10;
     float penIncrement = (toPosition - currentPenPosition) / 10.0;
 
     // Loop takes it to one step less than full travel.
@@ -321,7 +330,7 @@ void processCommand()
     }
 
     if (GCode.HasWord('F'))
-      feedrate = GCode.GetWordValue('F');
+      xyFeedrate = GCode.GetWordValue('F');
 
     tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
 
@@ -335,7 +344,7 @@ void processCommand()
     // axis at the same time, so they complete the travel simultaneously. This results in a
     // straight-line movement to the new position point.
     case 0:
-      steppers->moveTo(tempX, tempY, MAX_FEEDRATE);
+      steppers->moveTo(tempX, tempY, MAX_XY_FEEDRATE);
       break;
 
     // G01 – Linear Interpolation
@@ -347,9 +356,9 @@ void processCommand()
     // thousands of calculations per second in order to make these movements.
     case 1:
       if (currentPenPosition <= penUpPosition)
-        steppers->travelTo(tempX, tempY, feedrate); // Potentially wrap around the sphere if pen is up.
+        steppers->travelTo(tempX, tempY, xyFeedrate); // Potentially wrap around the sphere if pen is up.
       else
-        steppers->moveTo(tempX, tempY, feedrate);
+        steppers->moveTo(tempX, tempY, xyFeedrate);
       break;
 
     // G02 – Circular Interpolation Clockwise
@@ -551,6 +560,6 @@ void drawArc(double centerX, double centerY, double endpointX, double endpointY,
     newPointY = centerY + radius * sin(angleA + angle * ((double)step / steps));
 
     // Start the move.
-    steppers->moveTo(newPointX, newPointY, feedrate);
+    steppers->moveTo(newPointX, newPointY, xyFeedrate);
   }
 }

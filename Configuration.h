@@ -13,6 +13,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
+ * Updated 3/2021 by Terence Golla
  */
 
 #ifndef Configuration_h
@@ -69,6 +71,9 @@
 // Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
 #define DEFAULT_ZOOM_FACTOR   1.0
 
+// The default XY feedrate in steps/second.
+#define DEFAULT_XY_FEEDRATE 160.0
+
 // Pen Arm Configuration.  You will want to fine tune these settings by manually sending M300 codes.
 
 // Pen servo gets clamped to these values.
@@ -76,11 +81,11 @@
 #define MAX_PEN_POSITION      160
 
 // Default pen up/down positions.
-#define PEN_UP_POSITION       145
-#define PEN_DOWN_POSITION     125
+#define DEFAULT_PEN_UP_POSITION       145
+#define DEFAULT_PEN_DOWN_POSITION     125
 
 // How long to take for pen down moves in ms.
-#define PEN_DOWN_MOVE_TIME    200
+#define DEFAULT_PEN_FEEDRATE    200
 
 // X axis gets clamped to these values to prevent inadvertent damage.
 // Most drawings are 800 (-400 and 400) by 3200.
@@ -95,7 +100,7 @@
   #define ADAFRUIT_CLASS      AF_Stepper
   #define ONE_STEP_TIME       168
   // steps/s. A no-delay loop takes 0.17 ms per step, so this is the fastest we can go.
-  #define MAX_FEEDRATE        2900.0
+  #define MAX_XY_FEEDRATE        2900.0
 
 #else
 
@@ -105,7 +110,7 @@
   #define ADAFRUIT_CLASS      Adafruit_StepperMotor
   #define ONE_STEP_TIME       1290
   // steps/s. A no-delay loop takes 1.29 ms per step, so this is the fastest we can go.
-  #define MAX_FEEDRATE        775.0
+  #define MAX_XY_FEEDRATE        775.0
 
 #endif
 
