@@ -370,8 +370,8 @@ void processCommand()
 
     double tempX = steppers->xPos();
     double tempY = steppers->yPos();
-    
-    if (gCodeNumber>=0 && gCodeNumber <=3) //G0, G1, G2, G3
+
+    if (gCodeNumber >= 0 && gCodeNumber <= 3) //G0, G1, G2, G3
     {
       if (GCode.HasWord('X'))
       {
@@ -388,7 +388,7 @@ void processCommand()
         else
           tempY += GCode.GetWordValue('Y') * zoom;
       }
-      
+
       tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
 
       // Set XY or Z (Pen) feedrate.
@@ -405,11 +405,44 @@ void processCommand()
         }
       }
 
-//TODO: Working on MZ Mode detexction.
       // If MZ active mode equals auto and a Z coordinate exist set the MZ active mode to Z.
-//      if (mzActiveMode == Auto && GCode.HasWord('Z'))
-//        mzActiveMode = Z;
-   
+      if (mzActiveMode == Auto && GCode.HasWord('Z'))
+        mzActiveMode = Z;
+
+      if (mzActiveMode == Z)
+      {
+        if (GCode.HasWord('Z'))
+        {
+          double value = GCode.GetWordValue('Z');
+
+          // Set the calculated adjustment with the first Z value.
+          // The algorithm assume the first value is for the pen to be up.
+          if (zAdjustCalculated < 0)
+            zAdjustCalculated = (int8_t)value;
+
+          // Adjust Z based on preset pen up value.
+          if (zAdjust == Preset)
+          {
+            if (value < zAdjustPreset)
+              value = penDownPosition;
+            else
+              value = penUpPosition;
+          }
+
+          // Adjust Z based on calculated pen up value.
+          if (zAdjust == Calculated)
+          {
+            if (value < zAdjustCalculated)
+              value = penDownPosition;
+            else
+              value = penUpPosition;
+          }
+
+          value = clamp(value, minPenPosition, maxPenPosition);
+
+          movePen(value);
+        }
+      }        
     }
 
     switch (gCodeNumber)
@@ -494,7 +527,7 @@ void processCommand()
     int mCodeNumber = (int)GCode.GetWordValue('M');
 
     double value;
-    
+
     switch (mCodeNumber)
     {
     case 18: // M18 - Disable all stepper motors
@@ -503,41 +536,48 @@ void processCommand()
       break;
 
     case 300: // M300 - Set pen (servo) position.
-      if (GCode.HasWord('F'))
+      // If MZ active mode equals auto and a M300 command exist set the MZ active mode to M.
+      if (mzActiveMode == Auto)
+        mzActiveMode = M;
+
+      if (mzActiveMode == M)
       {
-        penFeedrate = GCode.GetWordValue('F');
-      }
-
-      if (GCode.HasWord('S'))
-      {
-        value = GCode.GetWordValue('S');
-
-        // Set the calculated adjustment with the first M300 S value.  
-        // The algorithm assume the first value is for the pen to be up.
-        if (mAdjustCalculated < 0)
-          mAdjustCalculated =(int8_t) value;
-
-        // Adjust S based on preset pen up value.
-        if (mAdjust == Preset)
+        if (GCode.HasWord('F'))
         {
-          if (value < mAdjustPreset)
-            value = penDownPosition;
-          else
-            value = penUpPosition;
+          penFeedrate = GCode.GetWordValue('F');
         }
 
-        // Adjust S based on calculated pen up value.
-        if (mAdjust == Calculated)
+        if (GCode.HasWord('S'))
         {
-          if (value < mAdjustCalculated)
-            value = penDownPosition;
-          else
-            value = penUpPosition;
+          value = GCode.GetWordValue('S');
+
+          // Set the calculated adjustment with the first M300 S value.
+          // The algorithm assume the first value is for the pen to be up.
+          if (mAdjustCalculated < 0)
+            mAdjustCalculated = (int8_t)value;
+
+          // Adjust S based on preset pen up value.
+          if (mAdjust == Preset)
+          {
+            if (value < mAdjustPreset)
+              value = penDownPosition;
+            else
+              value = penUpPosition;
+          }
+
+          // Adjust S based on calculated pen up value.
+          if (mAdjust == Calculated)
+          {
+            if (value < mAdjustCalculated)
+              value = penDownPosition;
+            else
+              value = penUpPosition;
+          }
+
+          value = clamp(value, minPenPosition, maxPenPosition);
+
+          movePen(value);
         }
-
-        value = clamp(value, minPenPosition, maxPenPosition);
-
-        movePen(value);
       }
       break;
 
@@ -568,7 +608,7 @@ void processCommand()
       if (GCode.HasWord('P'))
       {
         mzMode = GCode.GetWordValue('P');
-        
+
         if (mzMode > Auto)
           mzMode = M;
 
@@ -586,7 +626,7 @@ void processCommand()
 
         // Force recalculation of calculated adjustment.
         if (mAdjust == Calculated)
-          mAdjustCalculated = -1;  
+          mAdjustCalculated = -1;
       }
       break;
 
@@ -600,7 +640,7 @@ void processCommand()
 
         // Force recalculation of calculated adjustment.
         if (zAdjust == Calculated)
-          zAdjustCalculated = -1;  
+          zAdjustCalculated = -1;
       }
       break;
 
