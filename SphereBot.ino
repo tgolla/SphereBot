@@ -104,6 +104,7 @@ byte penDownPosition;
 byte currentPenPosition;
 
 byte mzMode;
+byte mzActiveMode;
 byte mAdjust;
 byte zAdjust;
 byte mAdjustPreset;
@@ -284,6 +285,9 @@ void loadPenConfiguration()
   // Negative 1 indicates the calculated value has not been set.
   int8_t mAdjustCalculated = -1;
   int8_t zAdjustCalculated = -1;
+
+  // Used to determine the MZ mode when set to Auto.
+  mzActiveMode = mzMode;
 }
 
 // Saves the pen configuration to memeoy.
@@ -384,7 +388,10 @@ void processCommand()
         else
           tempY += GCode.GetWordValue('Y') * zoom;
       }
+      
+      tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
 
+      // Set XY or Z (Pen) feedrate.
       if (GCode.HasWord('F'))
       {
         if (GCode.HasWord('X') || GCode.HasWord('Y'))
@@ -398,7 +405,11 @@ void processCommand()
         }
       }
 
-      tempY = clamp(tempY, MIN_PEN_AXIS_STEP, MAX_PEN_AXIS_STEP);
+//TODO: Working on MZ Mode detexction.
+      // If MZ active mode equals auto and a Z coordinate exist set the MZ active mode to Z.
+//      if (mzActiveMode == Auto && GCode.HasWord('Z'))
+//        mzActiveMode = Z;
+   
     }
 
     switch (gCodeNumber)
@@ -555,17 +566,42 @@ void processCommand()
     // P2 - Automatically detects which code is responsible for setting the pen height.
     case 305:
       if (GCode.HasWord('P'))
+      {
         mzMode = GCode.GetWordValue('P');
+        
+        if (mzMode > Auto)
+          mzMode = M;
+
+        mzActiveMode = mzMode;
+      }
       break;
 
     case 306: // M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
       if (GCode.HasWord('P'))
+      {
         mAdjust = GCode.GetWordValue('P');
+
+        if (mAdjust > Calculated)
+          mAdjust = Off;
+
+        // Force recalculation of calculated adjustment.
+        if (mAdjust == Calculated)
+          mAdjustCalculated = -1;  
+      }
       break;
 
     case 307: // M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
       if (GCode.HasWord('P'))
+      {
         zAdjust = GCode.GetWordValue('P');
+
+        if (zAdjust > Calculated)
+          zAdjust = Off;
+
+        // Force recalculation of calculated adjustment.
+        if (zAdjust == Calculated)
+          zAdjustCalculated = -1;  
+      }
       break;
 
     case 308: // M308 - Sets the M300 pen up preset value. S values less than the value move the pen down.
