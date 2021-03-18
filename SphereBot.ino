@@ -108,6 +108,8 @@ byte mAdjust;
 byte zAdjust;
 byte mAdjustPreset;
 byte zAdjustPreset;
+int8_t mAdjustCalculated = -1;
+int8_t zAdjustCalculated = -1;
 double xyFeedrate;
 double penFeedrate;
 
@@ -278,6 +280,10 @@ void loadPenConfiguration()
     xyFeedrate = DEFAULT_XY_FEEDRATE;
     penFeedrate = DEFAULT_PEN_FEEDRATE;
   }
+
+  // Negative 1 indicates the calculated value has not been set.
+  int8_t mAdjustCalculated = -1;
+  int8_t zAdjustCalculated = -1;
 }
 
 // Saves the pen configuration to memeoy.
@@ -490,12 +496,33 @@ void processCommand()
       {
         penFeedrate = GCode.GetWordValue('F');
       }
+
       if (GCode.HasWord('S'))
       {
         value = GCode.GetWordValue('S');
 
-        if (value > 180)
-          value = penUpPosition;
+        // Set the calculated adjustment with the first M300 S value.  
+        // The algorithm assume the first value is for the pen to be up.
+        if (mAdjustCalculated < 0)
+          mAdjustCalculated =(int8_t) value;
+
+        // Adjust S based on preset pen up value.
+        if (mAdjust == Preset)
+        {
+          if (value < mAdjustPreset)
+            value = penDownPosition;
+          else
+            value = penUpPosition;
+        }
+
+        // Adjust S based on calculated pen up value.
+        if (mAdjust == Calculated)
+        {
+          if (value < mAdjustCalculated)
+            value = penDownPosition;
+          else
+            value = penUpPosition;
+        }
 
         value = clamp(value, minPenPosition, maxPenPosition);
 
