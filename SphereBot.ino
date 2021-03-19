@@ -49,7 +49,7 @@
  *   - Added the following new M-Codes to allow for increased flexablity
  *     controlling the pen servo. 
  *  
- *       M304 - Sets the pen down position needed for new AdjustedM mode.
+ *       M304 - Sets the pen down position needed for new MZ mode.
  *       M305 - Sets the G-Code responsible for operating the pen servo.  
  *              P0 - M300 sets the pen height. P1 - G0, G1, G2 & G3 Z parameter
  *              is responsible for setting the pen height. P2 - Automatically
@@ -128,8 +128,8 @@ byte mAdjust;
 byte zAdjust;
 byte mAdjustPreset;
 byte zAdjustPreset;
-int8_t mAdjustCalculated = -1;
-int8_t zAdjustCalculated = -1;
+short mAdjustCalculated = -1;
+short zAdjustCalculated = -1;
 double xyFeedrate;
 double penFeedrate;
 
@@ -321,8 +321,8 @@ void loadPenConfiguration()
   }
 
   // Negative 1 indicates the calculated value has not been set.
-  int8_t mAdjustCalculated = -1;
-  int8_t zAdjustCalculated = -1;
+  short mAdjustCalculated = -1;
+  short zAdjustCalculated = -1;
 
   // Used to determine the MZ mode when set to Auto.
   mzActiveMode = mzMode;
@@ -459,7 +459,7 @@ void processCommand()
           // Set the calculated adjustment with the first Z value.
           // The algorithm assume the first value is for the pen to be up.
           if (zAdjustCalculated < 0)
-            zAdjustCalculated = (int8_t)value;
+            zAdjustCalculated = (short)value;
 
           // Adjust Z based on preset pen up value.
           if (zAdjust == Preset)
@@ -602,7 +602,7 @@ void processCommand()
           // Set the calculated adjustment with the first M300 S value.
           // The algorithm assume the first value is for the pen to be up.
           if (mAdjustCalculated < 0)
-            mAdjustCalculated = (int8_t)value;
+            mAdjustCalculated = (short)value;
 
           // Adjust S based on preset pen up value.
           if (mAdjust == Preset)
