@@ -93,7 +93,7 @@
 #include <SPI.h>
 #include <Wire.h>
 
-#if ADAFRUIT_TFT_TOUCH_SHIELD
+#if ADAFRUIT_TFT_TOUCH_SHIELD == true
 // Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
 #include <Adafruit_GFX.h> // Core Graphics Library
 // This contains the low-level code specific to the TFT display.
@@ -202,7 +202,7 @@ boolean serialMode = true;
 
 GCodeParser GCode = GCodeParser();
 
-#if ADAFRUIT_TFT_TOUCH_SHIELD
+#if ADAFRUIT_TFT_TOUCH_SHIELD == true
 SdFat SD;                        // SD card filesystem.
 Adafruit_ImageReader reader(SD); // Image-reader object, pass in SD.
 
@@ -232,7 +232,7 @@ void setup()
   servoWrite(penUpPosition);
   currentPenPosition = penUpPosition;
 
-#if ADAFRUIT_TFT_TOUCH_SHIELD
+#if ADAFRUIT_TFT_TOUCH_SHIELD == true
   // Look for SD and Touchscreen.
   if (SD.begin(SD_CS))
   {
@@ -720,6 +720,41 @@ void processCommand()
     case 502: // M502 - Clear pen configuration from memory.
       clearPenConfiguration();
       break;
+
+#if DEBUG == true
+    case 999: // M999 - Debugging command.
+      Serial.println();
+      Serial.print("Minimun Pen Position: ");
+      Serial.println(minPenPosition);
+      Serial.print("Maximun Pen Position: ");
+      Serial.println(maxPenPosition);
+      Serial.print("Pen Up Position: ");
+      Serial.println(penUpPosition);
+      Serial.print("Pen Down Position: ");
+      Serial.println(penDownPosition);
+      Serial.print("MX Mode: ");
+      Serial.println(mzMode);
+      Serial.print("M Adjust: ");
+      Serial.println(mAdjust);
+      Serial.print("Z Adjust: ");
+      Serial.println(zAdjust);
+      Serial.print("M Adjust Perset: ");
+      Serial.println(mAdjustPreset);
+      Serial.print("Z Adjust Preset: ");
+      Serial.println(zAdjustPreset);
+      Serial.print("M Adjust Calculated: ");
+      Serial.println(mAdjustCalculated);
+      Serial.print("Z Adjust Calculated: ");
+      Serial.println(zAdjustCalculated);
+      Serial.print("XY Feedrate: ");
+      Serial.println(xyFeedrate);
+      Serial.print("Pen Feedrate: ");
+      Serial.println(penFeedrate);
+      Serial.print("MZ Active Mode: ");
+      Serial.println(mzActiveMode);
+      Serial.println();
+      break;  
+#endif      
     }
   }
 
