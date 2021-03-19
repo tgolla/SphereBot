@@ -456,11 +456,6 @@ void processCommand()
         {
           double value = GCode.GetWordValue('Z');
 
-          // Set the calculated adjustment with the first Z value.
-          // The algorithm assume the first value is for the pen to be up.
-          if (zAdjustCalculated < 0)
-            zAdjustCalculated = (short)value;
-
           // Adjust Z based on preset pen up value.
           if (zAdjust == Preset)
           {
@@ -473,6 +468,11 @@ void processCommand()
           // Adjust Z based on calculated pen up value.
           if (zAdjust == Calculated)
           {
+            // Set the calculated adjustment with the first Z value.
+            // The algorithm assume the first value is for the pen to be up.
+            if (zAdjustCalculated < 0)
+              zAdjustCalculated = (short)value;
+
             if (value < zAdjustCalculated)
               value = penDownPosition;
             else
@@ -599,11 +599,6 @@ void processCommand()
         {
           value = GCode.GetWordValue('S');
 
-          // Set the calculated adjustment with the first M300 S value.
-          // The algorithm assume the first value is for the pen to be up.
-          if (mAdjustCalculated < 0)
-            mAdjustCalculated = (short)value;
-
           // Adjust S based on preset pen up value.
           if (mAdjust == Preset)
           {
@@ -616,6 +611,11 @@ void processCommand()
           // Adjust S based on calculated pen up value.
           if (mAdjust == Calculated)
           {
+            // Set the calculated adjustment with the first M300 S value.
+            // The algorithm assume the first value is for the pen to be up.
+            if (mAdjustCalculated < 0)
+              mAdjustCalculated = (short)value;
+
             if (value < mAdjustCalculated)
               value = penDownPosition;
             else
@@ -726,6 +726,7 @@ void processCommand()
       clearPenConfiguration();
       break;
 
+#define DEBUG true
 #if DEBUG == true
     case 999: // M999 - Debugging command.
       Serial.println();
