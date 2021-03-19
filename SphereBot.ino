@@ -577,7 +577,7 @@ void processCommand()
 
     switch (mCodeNumber)
     {
-    case 18: // M18 - Disable all stepper motors
+    case 18: // M18 - Disable all stepper motors.
       xStepper->release();
       yStepper->release();
       break;
@@ -712,41 +712,40 @@ void processCommand()
         zoom = GCode.GetWordValue('S');
       break;
 
-    case 500: // M500 - Save pen configuration to memory.
+    case 500: // M500 - Save pen configuration to EEPROM.
       savePenConfiguration();
       break;
 
-    case 501: // M501 - Load pen configuration from memory.
+    case 501: // M501 - Load pen configuration from EEPROM.
       loadPenConfiguration();
       break;
 
-    case 502: // M502 - Clear pen configuration from memory.
+    case 502: // M502 - Clear pen configuration from EEPROM.
       clearPenConfiguration();
       break;
 
-#define DEBUG true
 #if DEBUG == true
     case 999: // M999 - Debugging command.
       Serial.println();
-      Serial.print("M301 - Minimun Pen Position: ");
+      Serial.print("M301 Pxxx - Minimun Pen Position: ");
       Serial.println(minPenPosition);
-      Serial.print("M302 - Maximun Pen Position: ");
+      Serial.print("M302 Pxxx - Maximun Pen Position: ");
       Serial.println(maxPenPosition);
-      Serial.print("M303 - Pen Up Position: ");
+      Serial.print("M303 Pxxx - Pen Up Position: ");
       Serial.println(penUpPosition);
-      Serial.print("M304 - Pen Down Position: ");
+      Serial.print("M304 Pxxx - Pen Down Position: ");
       Serial.println(penDownPosition);
-      Serial.print("M305 - MZ Mode (0-M, 1-Z, 2-Auto): ");
-      Serial.println(mzMode);
-      Serial.print("MZ Active Mode: ");
+      Serial.print("M305 Px - MZ Mode (0-M, 1-Z, 2-Auto): ");
+      Serial.print(mzMode);
+      Serial.print("  MZ Active Mode: ");
       Serial.println(mzActiveMode);
-      Serial.print("M306 - M Adjust (0-Off, 1-Perset, 2-Calculated): ");
+      Serial.print("M306 Px - M Adjust (0-Off, 1-Perset, 2-Calculated): ");
       Serial.println(mAdjust);
-      Serial.print("M307 - Z Adjust: (0-Off, 1-Perset, 2-Calculated): ");
+      Serial.print("M307 Px - Z Adjust: (0-Off, 1-Perset, 2-Calculated): ");
       Serial.println(zAdjust);
-      Serial.print("M308 - M Adjust Perset: ");
+      Serial.print("M308 Pxxx - M Adjust Perset: ");
       Serial.println(mAdjustPreset);
-      Serial.print("M309 - Z Adjust Preset: ");
+      Serial.print("M309 Pxxx - Z Adjust Preset: ");
       Serial.println(zAdjustPreset);
       Serial.print("M Adjust Calculated: ");
       Serial.println(mAdjustCalculated);
@@ -756,6 +755,14 @@ void processCommand()
       Serial.println(xyFeedrate);
       Serial.print("Gx Zxxx Fxxx - Pen Feedrate: ");
       Serial.println(penFeedrate);
+      Serial.print("Values Saved in EEPROM ("); 
+      Serial.print(EEPROM_MAGIC_NUMBER);
+      Serial.print("): ");
+      Serial.println(EEPROM.read(valueSavedEEPROMMemoryLocation));
+      Serial.println("M18 - Disable stepper motors.");
+      Serial.println("M500 - Save pen configuration to EEPROM.");
+      Serial.println("M501 - Load pen configuration from EEPROM (or defaults if cleared).");
+      Serial.println("M502 - Clear pen configuration from EEPROM.");
       Serial.println();
       break;
 #endif

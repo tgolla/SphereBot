@@ -20,6 +20,9 @@
 #ifndef Configuration_h
 #define Configuration_h
 
+// Added debugging (M999) command.
+#define DEBUG true
+
 // Set to true if you are using an Adafruit 2.8" TFT Touch Shield for 
 // Arduino w/Capacitive Touch with an Arduino Mega 2560 Note: A Mega
 // 2560 is required due to the memory requirements.  
@@ -85,7 +88,7 @@
 
 // Default pen up/down positions.
 #define DEFAULT_PEN_UP_POSITION 145
-#define DEFAULT_PEN_DOWN_POSITION 125
+#define DEFAULT_PEN_DOWN_POSITION 115
 
 // How long to take for pen down moves in degrees/second.
 #define DEFAULT_PEN_FEEDRATE 200.0
