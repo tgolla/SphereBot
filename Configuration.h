@@ -58,11 +58,11 @@
  * as 6, not 9.
  */
 
-#define PEN_AXIS_PORT         1
-#define ROTATION_AXIS_PORT    2
+#define PEN_AXIS_PORT 1
+#define ROTATION_AXIS_PORT 2
 
-#define SERVO_PIN             6
-#define REVERSE_SERVO         true
+#define SERVO_PIN 6
+#define REVERSE_SERVO true
 
 
 // Steppers Configuration
@@ -71,24 +71,24 @@
 #define STEPS_PER_REVOLUTION  200
 
 // Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
-#define DEFAULT_ZOOM_FACTOR   1.0
+#define DEFAULT_ZOOM_FACTOR 1.0
 
 // The default XY feedrate in steps/second.
 #define DEFAULT_XY_FEEDRATE 160.0
 
 
-// Pen Arm Configuration.  You will want to fine tune these settings by manually sending M300 codes.
+// Pen Arm Configuration. You will want to fine tune these settings by manually sending M300 codes.
 
 // Pen servo gets clamped to these values.
-#define MIN_PEN_POSITION      100
-#define MAX_PEN_POSITION      160
+#define MIN_PEN_POSITION 100
+#define MAX_PEN_POSITION 160
 
 // Default pen up/down positions.
-#define DEFAULT_PEN_UP_POSITION       145
-#define DEFAULT_PEN_DOWN_POSITION     125
+#define DEFAULT_PEN_UP_POSITION 145
+#define DEFAULT_PEN_DOWN_POSITION 125
 
-// How long to take for pen down moves in ms.
-#define DEFAULT_PEN_FEEDRATE    200
+// How long to take for pen down moves in degrees/second.
+#define DEFAULT_PEN_FEEDRATE 200
 
 // Default settings of M and Z code modes to allow for increased 
 // flexablity controlling the pen servo. 
@@ -134,8 +134,8 @@
 
 // X axis gets clamped to these values to prevent inadvertent damage.
 // Most drawings are 800 (-400 and 400) by 3200.
-#define MIN_PEN_AXIS_STEP    -480
-#define MAX_PEN_AXIS_STEP     480
+#define MIN_PEN_AXIS_STEP -480
+#define MAX_PEN_AXIS_STEP 480
 
 // Version dependent configurations.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
@@ -143,9 +143,9 @@
   #include <AFMotor.h>
 
   #define ADAFRUIT_CLASS      AF_Stepper
-  #define ONE_STEP_TIME       168
+  #define ONE_STEP_TIME 168
   // steps/s. A no-delay loop takes 0.17 ms per step, so this is the fastest we can go.
-  #define MAX_XY_FEEDRATE        2900.0
+  #define MAX_XY_FEEDRATE 2900.0
 
 #else
 
@@ -153,9 +153,9 @@
   //#include <utility/Adafruit_MS_PWMServoDriver.h>
   
   #define ADAFRUIT_CLASS      Adafruit_StepperMotor
-  #define ONE_STEP_TIME       1290
+  #define ONE_STEP_TIME 1290
   // steps/s. A no-delay loop takes 1.29 ms per step, so this is the fastest we can go.
-  #define MAX_XY_FEEDRATE        775.0
+  #define MAX_XY_FEEDRATE 775.0
 
 #endif
 
