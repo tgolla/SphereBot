@@ -724,37 +724,38 @@ void processCommand()
       clearPenConfiguration();
       break;
 
+#define DEBUG true
 #if DEBUG == true
     case 999: // M999 - Debugging command.
       Serial.println();
-      Serial.print("Minimun Pen Position: ");
+      Serial.print("M301 - Minimun Pen Position: ");
       Serial.println(minPenPosition);
-      Serial.print("Maximun Pen Position: ");
+      Serial.print("M302 - Maximun Pen Position: ");
       Serial.println(maxPenPosition);
-      Serial.print("Pen Up Position: ");
+      Serial.print("M303 - Pen Up Position: ");
       Serial.println(penUpPosition);
-      Serial.print("Pen Down Position: ");
+      Serial.print("M304 - Pen Down Position: ");
       Serial.println(penDownPosition);
-      Serial.print("MX Mode: ");
+      Serial.print("M305 - MZ Mode (0-M, 1-Z, 2-Auto): ");
       Serial.println(mzMode);
-      Serial.print("M Adjust: ");
+      Serial.print("MZ Active Mode: ");
+      Serial.println(mzActiveMode);
+      Serial.print("M306 - M Adjust (0-Off, 1-Perset, 2-Calculated): ");
       Serial.println(mAdjust);
-      Serial.print("Z Adjust: ");
+      Serial.print("M307 - Z Adjust: (0-Off, 1-Perset, 2-Calculated): ");
       Serial.println(zAdjust);
-      Serial.print("M Adjust Perset: ");
+      Serial.print("M308 - M Adjust Perset: ");
       Serial.println(mAdjustPreset);
-      Serial.print("Z Adjust Preset: ");
+      Serial.print("M309 - Z Adjust Preset: ");
       Serial.println(zAdjustPreset);
       Serial.print("M Adjust Calculated: ");
       Serial.println(mAdjustCalculated);
       Serial.print("Z Adjust Calculated: ");
       Serial.println(zAdjustCalculated);
-      Serial.print("XY Feedrate: ");
+      Serial.print("M300 Sxxx Fxxx - XY Feedrate: ");
       Serial.println(xyFeedrate);
-      Serial.print("Pen Feedrate: ");
+      Serial.print("Gx Zxxx Fxxx - Pen Feedrate: ");
       Serial.println(penFeedrate);
-      Serial.print("MZ Active Mode: ");
-      Serial.println(mzActiveMode);
       Serial.println();
       break;
 #endif
