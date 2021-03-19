@@ -74,7 +74,7 @@
 #define DEFAULT_ZOOM_FACTOR 1.0
 
 // The default XY feedrate in steps/second.
-#define DEFAULT_XY_FEEDRATE 160.0
+#define DEFAULT_XY_FEEDRATE 400.0
 
 
 // Pen Arm Configuration. You will want to fine tune these settings by manually sending M300 codes.
@@ -88,7 +88,7 @@
 #define DEFAULT_PEN_DOWN_POSITION 125
 
 // How long to take for pen down moves in degrees/second.
-#define DEFAULT_PEN_FEEDRATE 200
+#define DEFAULT_PEN_FEEDRATE 200.0
 
 // Default settings of M and Z code modes to allow for increased 
 // flexablity controlling the pen servo. 

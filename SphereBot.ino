@@ -675,8 +675,7 @@ void processCommand()
           mAdjust = Off;
 
         // Force recalculation of calculated adjustment.
-        if (mAdjust == Calculated)
-          mAdjustCalculated = -1;
+        mAdjustCalculated = -1;
       }
       break;
 
@@ -690,8 +689,7 @@ void processCommand()
           zAdjust = Off;
 
         // Force recalculation of calculated adjustment.
-        if (zAdjust == Calculated)
-          zAdjustCalculated = -1;
+        zAdjustCalculated = -1;
       }
       break;
 
@@ -726,7 +724,6 @@ void processCommand()
       clearPenConfiguration();
       break;
 
-#define DEBUG true
 #if DEBUG == true
     case 999: // M999 - Debugging command.
       Serial.println();
