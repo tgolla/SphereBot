@@ -17,16 +17,20 @@
  * Part of this code is based on/inspired by the Helium Frog Delta Robot Firmware
  * by Martin Price <http://www.HeliumFrog.com>
  *
- * 2015-2016 the code was modified to run on an Adafruit Motor Shield V2 by Jin Choi <jsc@alum.mit.edu>.
+ * 2015-2016 the code was modified to run on an Adafruit Motor Shield V2 
+ * by Jin Choi <jsc@alum.mit.edu>.
+ * 
  * 2016 code support for the Adafruit Motor Shield V1 was added by GrAndAG.
  * 
- * 2/2021 the code was modified with the following improvements by Terence Golla (tgolla).
+ * 3/2021 the code was modified with the following improvements 
+ * by Terence Golla (tgolla).
  *  
- *   - Corrected the naming convention mix of snake_case and camelCase for more prominent C/C++ Arduino 
- *     software use of camelCase.
+ *   - Corrected the naming convention mix of snake_case and camelCase for more
+ *     prominent C/C++ Arduino software use of camelCase.
  * 
  *   - Restructured the ino software file to follow Arduino styling...
- *       - Begin with a set of comments clearly describing the purpose and assumptions of the code.
+ *       - Begin with a set of comments clearly describing the purpose and 
+ *         assumptions of the code.
  *       - Import any required library headers.
  *       - Define constants.
  *       - Define global variables.
@@ -37,23 +41,31 @@
  *
  *   - Modified code to operate servo installed in reverse.
  * 
- *   - A true to G-Code specification parser was added. The class was developed using Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
- *     and the Microsoft Unit Testing Framework for C++ (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
+ *   - A true to G-Code specification parser was added. The class was developed using
+ *     Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
+ *     and the Microsoft Unit Testing Framework for C++ 
+ *     (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
  * 
- *   - Added the following new M-Codes to allow for increased flexablity controlling the pen servo. 
+ *   - Added the following new M-Codes to allow for increased flexablity
+ *     controlling the pen servo. 
  *  
  *       M304 - Sets the pen down position needed for new AdjustedM mode.
- *       M305 - Sets the G-Code responsible for operating the pen servo.  P0 - M300 sets
- *              the pen height. P1 - G0, G1, G2 & G3 Z parameter is responsible for setting the pen height.
- *              P2 - Automatically detects which code is responsible for setting the pen height. 
+ *       M305 - Sets the G-Code responsible for operating the pen servo.  
+ *              P0 - M300 sets the pen height. P1 - G0, G1, G2 & G3 Z parameter
+ *              is responsible for setting the pen height. P2 - Automatically
+ *              detects which code is responsible for setting the pen height. 
  *       M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
  *       M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
- *       M308 - Sets the M300 pen up preset value. S values less than the value move the pen down.
- *       M309 - Sets the Z pen up preset value. Z values less than the value move the pen down.
+ *       M308 - Sets the M300 pen up preset value. S values less than the value 
+ *              move the pen down.
+ *       M309 - Sets the Z pen up preset value. Z values less than the value 
+ *              move the pen down.
  * 
- *   - Added the ability to set the pen feedrate with the M300 or G1, G2 & G3 codes with only Z values.
+ *   - Added the ability to set the pen feedrate with the M300 or G1, G2 & G3 
+ *     codes with only Z values.
  * 
- * This sketch needs the non-standard library (install it in the Arduino library directory):
+ * This sketch needs the non-standard library 
+ * (install it in the Arduino library directory):
  *
  * Adafruit Motor Shield (select appropriate version ):
  *   v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
@@ -71,7 +83,8 @@
  * Adafruit_FT6206 Library
  *   https://github.com/adafruit/Adafruit_FT6206_Library
  * 
- * Be sure to review and make appropriate modification to global constants in the "Configuration.h" file. 
+ * Be sure to review and make appropriate modification to global constants 
+ * in the "Configuration.h" file. 
  */
 
 #include "Configuration.h"
@@ -82,10 +95,13 @@
 
 #if ADAFRUIT_TFT_TOUCH_SHIELD
 // Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
-#include <Adafruit_GFX.h>         // Core Graphics Library
-#include <Adafruit_ILI9341.h>     // This contains the low-level code specific to the TFT display.
-#include <SdFat.h>                // SD card & FAT filesystem library.
-#include <Adafruit_FT6206.h>      // Controller library which does all the low level chatting with the FT6206 capacitive touch driver chip.
+#include <Adafruit_GFX.h> // Core Graphics Library
+// This contains the low-level code specific to the TFT display.
+#include <Adafruit_ILI9341.h>     
+#include <SdFat.h> // SD card & FAT filesystem library.
+// Controller library which does all the low level chatting with 
+// the FT6206 capacitive touch driver chip.
+#include <Adafruit_FT6206.h>
 #include <Adafruit_ImageReader.h> // Image-reading functions.
 #endif
 
@@ -117,18 +133,29 @@ double penFeedrate;
 // EEPROM memory locations.
 byte valueSavedEEPROMMemoryLocation = 0;
 byte minPenEEPROMMemoryLocation = 1;
-byte maxPenEEPROMMemoryLocation = minPenEEPROMMemoryLocation + sizeof(minPenPosition);
-byte penUpEEPROMMemoryLocation = maxPenEEPROMMemoryLocation + sizeof(maxPenPosition);
-byte penDownEEPROMMemoryLocation = penUpEEPROMMemoryLocation + sizeof(penUpPosition);
-byte mzModeEEPROMMemoryLocation = penDownEEPROMMemoryLocation + sizeof(penDownPosition);
-byte mAdjustEEPROMMemoryLocation = mzModeEEPROMMemoryLocation + sizeof(mzMode);
-byte zAdjustEEPROMMemoryLocation = mAdjustEEPROMMemoryLocation + sizeof(mAdjust);
-byte mAdjustPresetEEPROMMemoryLocation = zAdjustEEPROMMemoryLocation + sizeof(zAdjust);
-byte zAdjustPresetEEPROMMemoryLocation = mAdjustPresetEEPROMMemoryLocation + sizeof(mAdjustPreset);
-byte xyFeedrateEEPROMMemoryLocation = zAdjustPresetEEPROMMemoryLocation + sizeof(zAdjustPreset);
-byte penFeedrateEEPROMMemoryLocation = xyFeedrateEEPROMMemoryLocation + sizeof(xyFeedrate);
+byte maxPenEEPROMMemoryLocation = 
+  minPenEEPROMMemoryLocation + sizeof(minPenPosition);
+byte penUpEEPROMMemoryLocation = 
+  maxPenEEPROMMemoryLocation + sizeof(maxPenPosition);
+byte penDownEEPROMMemoryLocation = 
+  penUpEEPROMMemoryLocation + sizeof(penUpPosition);
+byte mzModeEEPROMMemoryLocation = 
+  penDownEEPROMMemoryLocation + sizeof(penDownPosition);
+byte mAdjustEEPROMMemoryLocation = 
+  mzModeEEPROMMemoryLocation + sizeof(mzMode);
+byte zAdjustEEPROMMemoryLocation = 
+  mAdjustEEPROMMemoryLocation + sizeof(mAdjust);
+byte mAdjustPresetEEPROMMemoryLocation = 
+  zAdjustEEPROMMemoryLocation + sizeof(zAdjust);
+byte zAdjustPresetEEPROMMemoryLocation = 
+  mAdjustPresetEEPROMMemoryLocation + sizeof(mAdjustPreset);
+byte xyFeedrateEEPROMMemoryLocation = 
+  zAdjustPresetEEPROMMemoryLocation + sizeof(zAdjustPreset);
+byte penFeedrateEEPROMMemoryLocation = 
+  xyFeedrateEEPROMMemoryLocation + sizeof(xyFeedrate);
 
-// Number expected to be found in EEPROM memory location 0 that indicates pen setting have been stored in memory.
+// Number expected to be found in EEPROM memory location 0 that indicates
+// pen setting have been stored in memory.
 #define EEPROM_MAGIC_NUMBER 23
 
 // Enum used with mzMode.
@@ -149,15 +176,20 @@ enum
 
 // Set up stepper motors and servo.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
-SingleStepper *xStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
-SingleStepper *yStepper = new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
+SingleStepper *xStepper = 
+  new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
+SingleStepper *yStepper = 
+  new SingleStepper(new AF_Stepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
 #else
 Adafruit_MotorShield MS = Adafruit_MotorShield();
-SingleStepper *xStepper = new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
-SingleStepper *yStepper = new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
+SingleStepper *xStepper = 
+  new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, ROTATION_AXIS_PORT));
+SingleStepper *yStepper = 
+  new SingleStepper(MS.getStepper(STEPS_PER_REVOLUTION, PEN_AXIS_PORT));
 #endif
 
-DualStepper *steppers = new DualStepper(xStepper, yStepper, STEPS_PER_REVOLUTION *MICROSTEPS);
+DualStepper *steppers = 
+  new DualStepper(xStepper, yStepper, STEPS_PER_REVOLUTION *MICROSTEPS);
 
 Servo servo;
 
@@ -188,7 +220,9 @@ void setup()
   // Configure Adafruit motor shield.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 2
   MS.begin();
-  TWBR = ((F_CPU / 400000L) - 16) / 2; // Change the i2c clock to 400KHz for faster stepping.
+
+  // Change the i2c clock to 400KHz for faster stepping.
+  TWBR = ((F_CPU / 400000L) - 16) / 2;
 #endif
 
   steppers->setMaxSpeed(MAX_XY_FEEDRATE);
@@ -252,7 +286,8 @@ void loop()
 // Loads the pen configuration from memory.
 void loadPenConfiguration()
 {
-  // Check EEPROM location 0 for presence of a magic number. If it's there, we have saved pen settings.
+  // Check EEPROM location 0 for presence of a magic number. 
+  // If it's there, we have saved pen settings.
   if (EEPROM.read(valueSavedEEPROMMemoryLocation) == EEPROM_MAGIC_NUMBER)
   {
     minPenPosition = EEPROM.read(minPenEEPROMMemoryLocation);
@@ -405,7 +440,8 @@ void processCommand()
         }
       }
 
-      // If MZ active mode equals auto and a Z coordinate exist set the MZ active mode to Z.
+      // If MZ active mode equals auto and a Z coordinate exist 
+      // set the MZ active mode to Z.
       if (mzActiveMode == Auto && GCode.HasWord('Z'))
         mzActiveMode = Z;
 
@@ -448,39 +484,43 @@ void processCommand()
     switch (gCodeNumber)
     {
     // G00 – Rapid Positioning
-    // The G00 command moves the machine at maximum travel speed from a current position to a
-    // specified point or the coordinates specified by the command. The machine will move all
-    // axis at the same time, so they complete the travel simultaneously. This results in a
-    // straight-line movement to the new position point.
+    // The G00 command moves the machine at maximum travel speed from a current 
+    // position to a specified point or the coordinates specified by the command. 
+    // The machine will move all axis at the same time, so they complete the 
+    // travel simultaneously. This results in a straight-line movement to the new
+    // position point.
     case 0:
       steppers->moveTo(tempX, tempY, MAX_XY_FEEDRATE);
       break;
 
     // G01 – Linear Interpolation
-    // The G01 G-code command instructs the machine to move in a straight line at a set feed
-    // rate or speed. We specify the end position with the X, Y and Z values, and the speed
-    // with the F value. The machine controller calculates (interpolates) the intermediate
-    // points to pass through to get that straight line. Although these G-code commands are
-    // simple and quite intuitive to understand, behind them, the machine controller performs
+    // The G01 G-code command instructs the machine to move in a straight line 
+    // at a set feed rate or speed. We specify the end position with the X, Y 
+    // and Z values, and the speed with the F value. The machine controller 
+    // calculates (interpolates) the intermediate points to pass through to get
+    // that straight line. Although these G-code commands are simple and quite
+    // intuitive to understand, behind them, the machine controller performs
     // thousands of calculations per second in order to make these movements.
-    case 1:
+    case 1: // Potentially wrap around the sphere if pen is up.
       if (currentPenPosition <= penUpPosition)
-        steppers->travelTo(tempX, tempY, xyFeedrate); // Potentially wrap around the sphere if pen is up.
+        steppers->travelTo(tempX, tempY, xyFeedrate);
       else
         steppers->moveTo(tempX, tempY, xyFeedrate);
       break;
 
     // G02 – Circular Interpolation Clockwise
-    // The G02 command tells the machine to move clockwise in a circular pattern. It is the same
-    // concept as the G01 command and it’s used when performing the appropriate machining process.
-    // In addition to the end point parameters, here we also need to define the center of rotation,
-    // or the distance of the arc start point from the center point of the arc. The start point is
+    // The G02 command tells the machine to move clockwise in a circular pattern.
+    // It is the same concept as the G01 command and it’s used when performing 
+    // the appropriate machining process. In addition to the end point parameters,
+    // here we also need to define the center of rotation, or the distance of 
+    // the arc start point from the center point of the arc. The start point is
     // actually the end point from the previous command or the current point.
     case 2:
     // G03 – Circular Interpolation Counterclockwise
-    // Just like the G02, the G03 G-code command defines the machine to move in circular pattern.
-    // The only difference here is that the motion is counterclockwise. All other features and rules
-    // are the same as the G02 command.
+    // Just like the G02, the G03 G-code command defines the machine to move in 
+    // circular pattern. The only difference here is that the motion is 
+    // counterclockwise. All other features and rules are the same as the G02 
+    // command.
     case 3:
       if (GCode.HasWord('I') && GCode.HasWord('J'))
       {
@@ -495,25 +535,27 @@ void processCommand()
       break;
 
     // G04 – Dwell Command
-    // G04 is called the Dwell command because it makes the machine stop what it is doing or dwell
-    // for a specified length of time. It is helpful to be able to dwell during a cutting operation,
-    // and also to facilitate various non-cutting operations of the machine.
+    // G04 is called the Dwell command because it makes the machine stop what it
+    // is doing or dwell for a specified length of time. It is helpful to be able
+    // to dwell during a cutting operation, and also to facilitate various 
+    // non-cutting operations of the machine.
     case 4: // G4 - Delay P milliseconds.
       if (GCode.HasWord('P'))
         delay(GCode.GetWordValue('P'));
       break;
 
     // G90/G91 – Positioning G-code commands
-    // With the G90 and G91 commands we tell the machine how to interpret the coordinates.
-    // G90 is for absolute mode and G91 is for relative mode.
+    // With the G90 and G91 commands we tell the machine how to interpret the
+    // coordinates. G90 is for absolute mode and G91 is for relative mode.
     //
-    // In absolute mode the positioning of the tool is always from the absolute point or zero.
-    // So, the command G01 X10 Y5 will take the tool to that exact point (10,5), no matter the
-    // previous position.
+    // In absolute mode the positioning of the tool is always from the absolute
+    // point or zero. So, the command G01 X10 Y5 will take the tool to that 
+    // exact point (10,5), no matter the previous position.
     //
-    // On the other hand, in relative mode, the positioning of the tool is relative to the
-    // last point. So, if the machine is currently at point (10,10), the command G01 X10 Y5 will
-    // take the tool to point (20,15). This mode is also called “incremental mode”.
+    // On the other hand, in relative mode, the positioning of the tool is 
+    // relative to the last point. So, if the machine is currently at point
+    // (10,10), the command G01 X10 Y5 will take the tool to point (20,15). 
+    // This mode is also called “incremental mode”.
     case 90: // G90 - Absolute Positioning.
       absoluteMode = true;
       break;
@@ -536,7 +578,8 @@ void processCommand()
       break;
 
     case 300: // M300 - Set pen (servo) position.
-      // If MZ active mode equals auto and a M300 command exist set the MZ active mode to M.
+      // If MZ active mode equals auto and a M300 command exist 
+      // set the MZ active mode to M.
       if (mzActiveMode == Auto)
         mzActiveMode = M;
 
@@ -601,9 +644,10 @@ void processCommand()
         penDownPosition = GCode.GetWordValue('P');
       break;
 
-    // M305 - Sets the G-Code responsible for operating the pen servo.  P0 - M300 sets
-    // the pen height. P1 - G0, G1, G2 & G3 Z parameter is responsible for setting the pen height.
-    // P2 - Automatically detects which code is responsible for setting the pen height.
+    // M305 - Sets the G-Code responsible for operating the pen servo.  
+    // P0 - M300 sets the pen height. P1 - G0, G1, G2 & G3 Z parameter is
+    // responsible for setting the pen height. P2 - Automatically detects
+    // which code is responsible for setting the pen height.
     case 305:
       if (GCode.HasWord('P'))
       {
@@ -616,7 +660,8 @@ void processCommand()
       }
       break;
 
-    case 306: // M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+    // M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+    case 306:
       if (GCode.HasWord('P'))
       {
         mAdjust = GCode.GetWordValue('P');
@@ -630,7 +675,8 @@ void processCommand()
       }
       break;
 
-    case 307: // M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+    // M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+    case 307: 
       if (GCode.HasWord('P'))
       {
         zAdjust = GCode.GetWordValue('P');
@@ -644,12 +690,16 @@ void processCommand()
       }
       break;
 
-    case 308: // M308 - Sets the M300 pen up preset value. S values less than the value move the pen down.
+    // M308 - Sets the M300 pen up preset value. 
+    // S values less than the value move the pen down.
+    case 308: 
       if (GCode.HasWord('P'))
         mAdjustPreset = GCode.GetWordValue('P');
       break;
 
-    case 309: // M309 - Sets the Z pen up preset value. Z values less than the value move the pen down.
+    // M309 - Sets the Z pen up preset value. 
+    // Z values less than the value move the pen down.
+    case 309:
       if (GCode.HasWord('P'))
         zAdjustPreset = GCode.GetWordValue('P');
       break;
@@ -682,7 +732,8 @@ void processCommand()
 }
 
 /* This code was ported from the Makerbot/ReplicatorG java sources */
-void drawArc(double centerX, double centerY, double endpointX, double endpointY, boolean clockwise)
+void drawArc(double centerX, double centerY, double endpointX, 
+  double endpointY, boolean clockwise)
 {
   // Angle variables.
   double angleA;
