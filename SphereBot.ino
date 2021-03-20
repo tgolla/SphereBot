@@ -98,6 +98,7 @@
 
 #include "Configuration.h"
 #include "GCodeParser.h"
+#include "EEPROMTyped.h"
 
 #include <SPI.h>
 #include <Wire.h>
@@ -145,29 +146,29 @@ double presetPenFeedrate;
 byte valueSavedEEPROMMemoryLocation = 0;
 byte minPenEEPROMMemoryLocation = 1;
 byte maxPenEEPROMMemoryLocation =
-    minPenEEPROMMemoryLocation + sizeof(minPenPosition);
+    minPenEEPROMMemoryLocation + EEPROMTyped.sizeOf(minPenPosition);
 byte penUpEEPROMMemoryLocation =
-    maxPenEEPROMMemoryLocation + sizeof(maxPenPosition);
+    maxPenEEPROMMemoryLocation + EEPROMTyped.sizeOf(maxPenPosition);
 byte penDownEEPROMMemoryLocation =
-    penUpEEPROMMemoryLocation + sizeof(penUpPosition);
+    penUpEEPROMMemoryLocation + EEPROMTyped.sizeOf(penUpPosition);
 byte mzModeEEPROMMemoryLocation =
-    penDownEEPROMMemoryLocation + sizeof(penDownPosition);
+    penDownEEPROMMemoryLocation + EEPROMTyped.sizeOf(penDownPosition);
 byte mAdjustEEPROMMemoryLocation =
-    mzModeEEPROMMemoryLocation + sizeof(mzMode);
+    mzModeEEPROMMemoryLocation + EEPROMTyped.sizeOf(mzMode);
 byte zAdjustEEPROMMemoryLocation =
-    mAdjustEEPROMMemoryLocation + sizeof(mAdjust);
+    mAdjustEEPROMMemoryLocation + EEPROMTyped.sizeOf(mAdjust);
 byte mAdjustPresetEEPROMMemoryLocation =
-    zAdjustEEPROMMemoryLocation + sizeof(zAdjust);
+    zAdjustEEPROMMemoryLocation + EEPROMTyped.sizeOf(zAdjust);
 byte zAdjustPresetEEPROMMemoryLocation =
-    mAdjustPresetEEPROMMemoryLocation + sizeof(mAdjustPreset);
+    mAdjustPresetEEPROMMemoryLocation + EEPROMTyped.sizeOf(mAdjustPreset);
 byte xyFeedrateEEPROMMemoryLocation =
-    zAdjustPresetEEPROMMemoryLocation + sizeof(zAdjustPreset);
+    zAdjustPresetEEPROMMemoryLocation + EEPROMTyped.sizeOf(zAdjustPreset);
 byte penFeedrateEEPROMMemoryLocation =
-    xyFeedrateEEPROMMemoryLocation + sizeof(xyFeedrate);
+    xyFeedrateEEPROMMemoryLocation + EEPROMTyped.sizeOf(xyFeedrate);
 byte presetXyFeedrateEEPROMMemoryLocation =
-    penFeedrateEEPROMMemoryLocation + sizeof(penFeedrate);
+    penFeedrateEEPROMMemoryLocation + EEPROMTyped.sizeOf(penFeedrate);
 byte presetPenFeedrateEEPROMMemoryLocation =
-    presetXyFeedrateEEPROMMemoryLocation + sizeof(presetXyFeedrate);
+    presetXyFeedrateEEPROMMemoryLocation + EEPROMTyped.sizeOf(presetXyFeedrate);
 
 // Number expected to be found in EEPROM memory location 0 that indicates
 // pen setting have been stored in memory.
@@ -305,19 +306,19 @@ void loadPenConfiguration()
   // If it's there, we have saved pen settings.
   if (EEPROM.read(valueSavedEEPROMMemoryLocation) == EEPROM_MAGIC_NUMBER)
   {
-    minPenPosition = EEPROM.read(minPenEEPROMMemoryLocation);
-    maxPenPosition = EEPROM.read(maxPenEEPROMMemoryLocation);
-    penUpPosition = EEPROM.read(penUpEEPROMMemoryLocation);
-    penDownPosition = EEPROM.read(penDownEEPROMMemoryLocation);
-    mzMode = EEPROM.read(mzModeEEPROMMemoryLocation);
-    mAdjust = EEPROM.read(mAdjustEEPROMMemoryLocation);
-    zAdjust = EEPROM.read(zAdjustEEPROMMemoryLocation);
-    mAdjustPreset = EEPROM.read(mAdjustPresetEEPROMMemoryLocation);
-    zAdjustPreset = EEPROM.read(zAdjustPresetEEPROMMemoryLocation);
-    xyFeedrate = EEPROM.read(xyFeedrateEEPROMMemoryLocation);
-    penFeedrate = EEPROM.read(penFeedrateEEPROMMemoryLocation);
-    presetXyFeedrate = EEPROM.read(presetXyFeedrateEEPROMMemoryLocation);
-    presetPenFeedrate = EEPROM.read(presetPenFeedrateEEPROMMemoryLocation);
+    EEPROMTyped.read(minPenEEPROMMemoryLocation, minPenPosition);
+    EEPROMTyped.read(maxPenEEPROMMemoryLocation, maxPenPosition);
+    EEPROMTyped.read(penUpEEPROMMemoryLocation, penUpPosition);
+    EEPROMTyped.read(penDownEEPROMMemoryLocation, penDownPosition);
+    EEPROMTyped.read(mzModeEEPROMMemoryLocation, mzMode);
+    EEPROMTyped.read(mAdjustEEPROMMemoryLocation, mAdjust);
+    EEPROMTyped.read(zAdjustEEPROMMemoryLocation, zAdjust);
+    EEPROMTyped.read(mAdjustPresetEEPROMMemoryLocation, mAdjustPreset);
+    EEPROMTyped.read(zAdjustPresetEEPROMMemoryLocation, zAdjustPreset);
+    EEPROMTyped.read(xyFeedrateEEPROMMemoryLocation, xyFeedrate);
+    EEPROMTyped.read(penFeedrateEEPROMMemoryLocation, penFeedrate);
+    EEPROMTyped.read(presetXyFeedrateEEPROMMemoryLocation, presetXyFeedrate);
+    EEPROMTyped.read(presetPenFeedrateEEPROMMemoryLocation, presetPenFeedrate);
   }
   else
   {
@@ -353,27 +354,27 @@ void loadPenConfiguration()
 // Saves the pen configuration to memeoy.
 void savePenConfiguration()
 {
-  EEPROM.update(minPenEEPROMMemoryLocation, minPenPosition);
-  EEPROM.update(maxPenEEPROMMemoryLocation, maxPenPosition);
-  EEPROM.update(penUpEEPROMMemoryLocation, penUpPosition);
-  EEPROM.update(penDownEEPROMMemoryLocation, penDownPosition);
-  EEPROM.update(mzModeEEPROMMemoryLocation, mzMode);
-  EEPROM.update(mAdjustEEPROMMemoryLocation, mAdjust);
-  EEPROM.update(zAdjustEEPROMMemoryLocation, zAdjust);
-  EEPROM.update(mAdjustPresetEEPROMMemoryLocation, mAdjustPreset);
-  EEPROM.update(zAdjustPresetEEPROMMemoryLocation, zAdjustPreset);
-  EEPROM.update(xyFeedrateEEPROMMemoryLocation, xyFeedrate);
-  EEPROM.update(penFeedrateEEPROMMemoryLocation, penFeedrate);
-  EEPROM.update(presetXyFeedrateEEPROMMemoryLocation, presetXyFeedrate);
-  EEPROM.update(presetPenFeedrateEEPROMMemoryLocation, presetPenFeedrate);
+  EEPROMTyped.write(minPenEEPROMMemoryLocation, minPenPosition);
+  EEPROMTyped.write(maxPenEEPROMMemoryLocation, maxPenPosition);
+  EEPROMTyped.write(penUpEEPROMMemoryLocation, penUpPosition);
+  EEPROMTyped.write(penDownEEPROMMemoryLocation, penDownPosition);
+  EEPROMTyped.write(mzModeEEPROMMemoryLocation, mzMode);
+  EEPROMTyped.write(mAdjustEEPROMMemoryLocation, mAdjust);
+  EEPROMTyped.write(zAdjustEEPROMMemoryLocation, zAdjust);
+  EEPROMTyped.write(mAdjustPresetEEPROMMemoryLocation, mAdjustPreset);
+  EEPROMTyped.write(zAdjustPresetEEPROMMemoryLocation, zAdjustPreset);
+  EEPROMTyped.write(xyFeedrateEEPROMMemoryLocation, xyFeedrate);
+  EEPROMTyped.write(penFeedrateEEPROMMemoryLocation, penFeedrate);
+  EEPROMTyped.write(presetXyFeedrateEEPROMMemoryLocation, presetXyFeedrate);
+  EEPROMTyped.write(presetPenFeedrateEEPROMMemoryLocation, presetPenFeedrate);
 
-  EEPROM.update(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
+  EEPROMTyped.write(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
 }
 
 // Clears the pen configuration from memory.
 void clearPenConfiguration()
 {
-  EEPROM.update(valueSavedEEPROMMemoryLocation, 0xff);
+  EEPROMTyped.write(valueSavedEEPROMMemoryLocation, 0xff);
 
   loadPenConfiguration();
 }
@@ -807,7 +808,7 @@ void processCommand()
       Serial.println(zAdjustCalculated);
       Serial.print("Gx Xxxx Yxxx Fxxx - XY Feedrate: ");
       Serial.println(xyFeedrate);
-      Serial.print("M300 Sxxx Fxxx or Gx Zxxx Fxxx- Pen Feedrate: ");
+      Serial.print("M300 Sxxx Fxxx or Gx Zxxx Fxxx - Pen Feedrate: ");
       Serial.println(penFeedrate);
       Serial.print("M310 - Preset XY Feedrate : ");
       Serial.println(presetXyFeedrate);
