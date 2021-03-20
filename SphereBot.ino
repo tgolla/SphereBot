@@ -66,6 +66,9 @@
  *       M311 - Sets the pen feedrate preset value. If zero feedrate is initalized with 
  *              default value and set through the M300 Fxxx or G0, G1, G2 & G3 codes
  *              with only Z values by Fxxx.
+ *       M312 - Sets the pen up feedrate multiplier. One means the pen will go up at the 
+ *              same speed (degrees/second) as it goes down. Each increase by one will 
+ *              logarithmically double the pen up speed.
  * 
  *   - Added the ability to set the pen feedrate with the M300 Fxxx or G0, G1, G2 & G3 
  *     codes with only Z values by Fxxx.
@@ -141,6 +144,7 @@ double xyFeedrate;
 double penFeedrate;
 double presetXyFeedrate;
 double presetPenFeedrate;
+short penUpFeedrateMultiplier;
 
 // EEPROM memory locations.
 byte valueSavedEEPROMMemoryLocation = 0;
@@ -169,6 +173,8 @@ byte presetXyFeedrateEEPROMMemoryLocation =
     penFeedrateEEPROMMemoryLocation + EEPROMTyped.sizeOf(penFeedrate);
 byte presetPenFeedrateEEPROMMemoryLocation =
     presetXyFeedrateEEPROMMemoryLocation + EEPROMTyped.sizeOf(presetXyFeedrate);
+byte penUpFeedrateMultiplierEEPROMMemoryLocation =
+    presetPenFeedrateEEPROMMemoryLocation + EEPROMTyped.sizeOf(presetPenFeedrate);
 
 // Number expected to be found in EEPROM memory location 0 that indicates
 // pen setting have been stored in memory.
@@ -319,6 +325,7 @@ void loadPenConfiguration()
     EEPROMTyped.read(penFeedrateEEPROMMemoryLocation, penFeedrate);
     EEPROMTyped.read(presetXyFeedrateEEPROMMemoryLocation, presetXyFeedrate);
     EEPROMTyped.read(presetPenFeedrateEEPROMMemoryLocation, presetPenFeedrate);
+    EEPROMTyped.read(penUpFeedrateMultiplierEEPROMMemoryLocation, penUpFeedrateMultiplier);
   }
   else
   {
@@ -335,6 +342,7 @@ void loadPenConfiguration()
     penFeedrate = DEFAULT_PEN_FEEDRATE;
     presetXyFeedrate = DEFAULT_PRESET_XY_FEEDRATE;
     presetPenFeedrate = DEFAULT_PRESET_PEN_FEEDRATE;
+    penUpFeedrateMultiplier = DEFAULT_PEN_UP_FEEDRATE_MULTIPLIER;
   }
 
   // Negative 1 indicates the calculated value has not been set.
@@ -367,6 +375,7 @@ void savePenConfiguration()
   EEPROMTyped.write(penFeedrateEEPROMMemoryLocation, penFeedrate);
   EEPROMTyped.write(presetXyFeedrateEEPROMMemoryLocation, presetXyFeedrate);
   EEPROMTyped.write(presetPenFeedrateEEPROMMemoryLocation, presetPenFeedrate);
+  EEPROMTyped.write(penUpFeedrateMultiplierEEPROMMemoryLocation, penUpFeedrateMultiplier);
 
   EEPROMTyped.write(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
 }
@@ -391,33 +400,34 @@ void servoWrite(int value)
 
 // Moves the pen (servo) position. Gently if down and quickly if up.
 // Zero is the maximun down position and 180 is the maximun up position.
-// 3/2021 - Corrected feedrate to degrees/second.
+// 3/2021 - Corrected feedrate to degrees/second. TFG
+// 3/20/2021 - Added pen up feedrate multiplier.
 void movePen(byte toPosition)
 {
+  // Ease the pen down based on the feedrate.
+  // One Second (1000ms) divided by feedrate (degrees).
+  // i.e. With a feedrate of 180 the pen moves 180 degrees in 1 second.
+  // At a feedrate of 90 the pen moves 180 degrees in 2 second.
+  // At a feedrate of 360 the pen moves 180 degrees in 1/2 second.
+  // Move the pen up based on the feedrate * multiplier. Each increase 
+  // by one will logarithmically double the pen up speed.
+  int penDelay;
+
   if (toPosition < currentPenPosition)
+    penDelay = 1000 / penFeedrate;
+  else 
+    penDelay = 1000 / (penFeedrate * penUpFeedrateMultiplier);
+  
+  while (currentPenPosition != toPosition)
   {
-    // Ease the pen down based on the feedrate.
-    // One Second (1000ms) divided by feedrate (degrees).
-    // i.e. With a feedrate of 180 the pen moves 180 degrees in 1 second.
-    // At a feedrate of 90 the pen moves 180 degrees in 2 second.
-    // At a feedrate of 360 the pen moves 180 degrees in 1/2 second.
-    int penDelay = 1000 / penFeedrate;
-
-    while (currentPenPosition != toPosition)
-    {
+    if (toPosition < currentPenPosition)
       currentPenPosition = currentPenPosition - 1;
+    else
+      currentPenPosition = currentPenPosition + 1;
 
-      servoWrite(currentPenPosition);
-      delay(penDelay);
-    }
-  }
-  else
-  {
-    // Full speed up.
-    servoWrite(toPosition);
-
-    currentPenPosition = toPosition;
-  }
+    servoWrite(currentPenPosition);
+    delay(penDelay);
+  }  
 }
 
 // Clamps a value between an lower and upper bound.
@@ -736,9 +746,9 @@ void processCommand()
         zAdjustPreset = GCode.GetWordValue('P');
       break;
 
-     // M310 - Sets the XY feedrate preset value. If zero feedrate is initalized
-     //        with default value and set through G0, G1, G2 & G3 codes with X 
-     //        or Y values by Fxxx. 
+    // M310 - Sets the XY feedrate preset value. If zero feedrate is initalized
+    // with default value and set through G0, G1, G2 & G3 codes with X or Y
+    // values by Fxxx. 
     case 310:
       if (GCode.HasWord('P'))
       {
@@ -749,9 +759,9 @@ void processCommand()
       }
       break;
 
-     // M311 - Sets the pen feedrate preset value. If zero feedrate is initalized
-     //        with default value and set through the M300 Fxxx or G0, G1, G2 & G3
-     //        codes with only Z values by Fxxx.
+    // M311 - Sets the pen feedrate preset value. If zero feedrate is initalized
+    // with default value and set through the M300 Fxxx or G0, G1, G2 & G3 codes
+    // with only Z values by Fxxx.
     case 311:
       if (GCode.HasWord('P')) 
       {
@@ -761,6 +771,19 @@ void processCommand()
           penFeedrate = presetPenFeedrate;
       }
       break;
+
+    // M312 - Sets the pen up feedrate multiplier. One means the pen will go up at the 
+    // same speed (degrees/second) as it goes down. Each increase by one will 
+    // logarithmically double the pen up speed.
+    case 312:
+      if (GCode.HasWord('P')) 
+      {
+        penUpFeedrateMultiplier = GCode.GetWordValue('P');
+
+        if (penUpFeedrateMultiplier < 1)
+          penUpFeedrateMultiplier = 1;
+      }
+    break;
 
     case 402: // M402 - Set global zoom factor.
       if (GCode.HasWord('S'))
@@ -814,6 +837,8 @@ void processCommand()
       Serial.println(presetXyFeedrate);
       Serial.print("M311 - Preset Pen Feedrate: ");
       Serial.println(presetPenFeedrate);
+      Serial.print("M312 - Pen Up Feedrate Multiplier: ");
+      Serial.println(penUpFeedrateMultiplier);
       Serial.print("Values Saved in EEPROM ("); 
       Serial.print(EEPROM_MAGIC_NUMBER);
       Serial.print("): ");

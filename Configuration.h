@@ -99,6 +99,12 @@
 // The default preset Pen feedrate in degrees/second. Use perset feedrate if not zero.
 #define DEFAULT_PRESET_PEN_FEEDRATE 0.0
 
+// The default preset pen up feedrate in degrees/second. Each increase by one will 
+// logarithmically double the pen up speed. i.e. A multiplier of 2 will cause the pen
+// to go up at twice the speed it went down. 
+#define DEFAULT_PEN_UP_FEEDRATE_MULTIPLIER 3
+
+
 // Default settings of M and Z code modes to allow for increased 
 // flexablity controlling the pen servo. 
 
