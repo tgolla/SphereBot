@@ -60,9 +60,15 @@
  *              move the pen down.
  *       M309 - Sets the Z pen up preset value. Z values less than the value 
  *              move the pen down.
+ *       M310 - Sets the XY feedrate preset value. If zero feedrate is initalized with 
+ *              default value and set through G0, G1, G2 & G3 codes with X or Y values
+ *              by Fxxx. 
+ *       M311 - Sets the pen feedrate preset value. If zero feedrate is initalized with 
+ *              default value and set through the M300 Fxxx or G0, G1, G2 & G3 codes
+ *              with only Z values by Fxxx.
  * 
- *   - Added the ability to set the pen feedrate with the M300 or G1, G2 & G3 
- *     codes with only Z values.
+ *   - Added the ability to set the pen feedrate with the M300 Fxxx or G0, G1, G2 & G3 
+ *     codes with only Z values by Fxxx.
  * 
  *   - Corrected pen up/down (feedrate was reversed) and changed feedrate to 
  *     degrees/second.
@@ -132,6 +138,8 @@ short mAdjustCalculated = -1;
 short zAdjustCalculated = -1;
 double xyFeedrate;
 double penFeedrate;
+double presetXyFeedrate;
+double presetPenFeedrate;
 
 // EEPROM memory locations.
 byte valueSavedEEPROMMemoryLocation = 0;
@@ -156,6 +164,10 @@ byte xyFeedrateEEPROMMemoryLocation =
     zAdjustPresetEEPROMMemoryLocation + sizeof(zAdjustPreset);
 byte penFeedrateEEPROMMemoryLocation =
     xyFeedrateEEPROMMemoryLocation + sizeof(xyFeedrate);
+byte presetXyFeedrateEEPROMMemoryLocation =
+    penFeedrateEEPROMMemoryLocation + sizeof(penFeedrate);
+byte presetPenFeedrateEEPROMMemoryLocation =
+    presetXyFeedrateEEPROMMemoryLocation + sizeof(presetXyFeedrate);
 
 // Number expected to be found in EEPROM memory location 0 that indicates
 // pen setting have been stored in memory.
@@ -304,6 +316,8 @@ void loadPenConfiguration()
     zAdjustPreset = EEPROM.read(zAdjustPresetEEPROMMemoryLocation);
     xyFeedrate = EEPROM.read(xyFeedrateEEPROMMemoryLocation);
     penFeedrate = EEPROM.read(penFeedrateEEPROMMemoryLocation);
+    presetXyFeedrate = EEPROM.read(presetXyFeedrateEEPROMMemoryLocation);
+    presetPenFeedrate = EEPROM.read(presetPenFeedrateEEPROMMemoryLocation);
   }
   else
   {
@@ -318,11 +332,19 @@ void loadPenConfiguration()
     zAdjustPreset = DEFAULT_Z_ADJUST_PRESET;
     xyFeedrate = DEFAULT_XY_FEEDRATE;
     penFeedrate = DEFAULT_PEN_FEEDRATE;
+    presetXyFeedrate = DEFAULT_PRESET_XY_FEEDRATE;
+    presetPenFeedrate = DEFAULT_PRESET_PEN_FEEDRATE;
   }
 
   // Negative 1 indicates the calculated value has not been set.
   short mAdjustCalculated = -1;
   short zAdjustCalculated = -1;
+
+  // If preset values are not zero use to set feedrates.
+  if (presetXyFeedrate > 0)
+    xyFeedrate = presetXyFeedrate;
+  if (presetPenFeedrate > 0)
+    penFeedrate = presetPenFeedrate;
 
   // Used to determine the MZ mode when set to Auto.
   mzActiveMode = mzMode;
@@ -342,6 +364,8 @@ void savePenConfiguration()
   EEPROM.update(zAdjustPresetEEPROMMemoryLocation, zAdjustPreset);
   EEPROM.update(xyFeedrateEEPROMMemoryLocation, xyFeedrate);
   EEPROM.update(penFeedrateEEPROMMemoryLocation, penFeedrate);
+  EEPROM.update(presetXyFeedrateEEPROMMemoryLocation, presetXyFeedrate);
+  EEPROM.update(presetPenFeedrateEEPROMMemoryLocation, presetPenFeedrate);
 
   EEPROM.update(valueSavedEEPROMMemoryLocation, EEPROM_MAGIC_NUMBER);
 }
@@ -413,6 +437,11 @@ void processCommand()
 
     if (gCodeNumber >= 0 && gCodeNumber <= 3) //G0, G1, G2, G3
     {
+      // If MZ active mode equals auto and a Z coordinate exist
+      // set the MZ active mode to Z.
+      if (mzActiveMode == Auto && GCode.HasWord('Z'))
+        mzActiveMode = Z;
+
       if (GCode.HasWord('X'))
       {
         if (absoluteMode)
@@ -436,19 +465,18 @@ void processCommand()
       {
         if (GCode.HasWord('X') || GCode.HasWord('Y'))
         {
-          xyFeedrate = GCode.GetWordValue('F');
+          if (presetXyFeedrate <= 0)
+            xyFeedrate = GCode.GetWordValue('F');
         }
         else
         {
           if (GCode.HasWord('Z'))
-            penFeedrate = GCode.GetWordValue('F');
+          {
+            if (mzActiveMode == Z && presetPenFeedrate <= 0)
+              penFeedrate = GCode.GetWordValue('F');
+          }
         }
       }
-
-      // If MZ active mode equals auto and a Z coordinate exist
-      // set the MZ active mode to Z.
-      if (mzActiveMode == Auto && GCode.HasWord('Z'))
-        mzActiveMode = Z;
 
       if (mzActiveMode == Z)
       {
@@ -707,6 +735,32 @@ void processCommand()
         zAdjustPreset = GCode.GetWordValue('P');
       break;
 
+     // M310 - Sets the XY feedrate preset value. If zero feedrate is initalized
+     //        with default value and set through G0, G1, G2 & G3 codes with X 
+     //        or Y values by Fxxx. 
+    case 310:
+      if (GCode.HasWord('P'))
+      {
+        presetXyFeedrate = GCode.GetWordValue('P');
+
+        if (presetXyFeedrate > 0)
+          xyFeedrate = presetXyFeedrate;
+      }
+      break;
+
+     // M311 - Sets the pen feedrate preset value. If zero feedrate is initalized
+     //        with default value and set through the M300 Fxxx or G0, G1, G2 & G3
+     //        codes with only Z values by Fxxx.
+    case 311:
+      if (GCode.HasWord('P')) 
+      {
+        presetPenFeedrate = GCode.GetWordValue('P');
+
+        if (presetPenFeedrate > 0)
+          penFeedrate = presetPenFeedrate;
+      }
+      break;
+
     case 402: // M402 - Set global zoom factor.
       if (GCode.HasWord('S'))
         zoom = GCode.GetWordValue('S');
@@ -739,11 +793,11 @@ void processCommand()
       Serial.print(mzMode);
       Serial.print("  MZ Active Mode: ");
       Serial.println(mzActiveMode);
-      Serial.print("M306 Px - M Adjust (0-Off, 1-Perset, 2-Calculated): ");
+      Serial.print("M306 Px - M Adjust (0-Off, 1-Preset, 2-Calculated): ");
       Serial.println(mAdjust);
-      Serial.print("M307 Px - Z Adjust: (0-Off, 1-Perset, 2-Calculated): ");
+      Serial.print("M307 Px - Z Adjust: (0-Off, 1-Preset, 2-Calculated): ");
       Serial.println(zAdjust);
-      Serial.print("M308 Pxxx - M Adjust Perset: ");
+      Serial.print("M308 Pxxx - M Adjust Preset: ");
       Serial.println(mAdjustPreset);
       Serial.print("M309 Pxxx - Z Adjust Preset: ");
       Serial.println(zAdjustPreset);
@@ -751,10 +805,14 @@ void processCommand()
       Serial.println(mAdjustCalculated);
       Serial.print("Z Adjust Calculated: ");
       Serial.println(zAdjustCalculated);
-      Serial.print("M300 Sxxx Fxxx - XY Feedrate: ");
+      Serial.print("Gx Xxxx Yxxx Fxxx - XY Feedrate: ");
       Serial.println(xyFeedrate);
-      Serial.print("Gx Zxxx Fxxx - Pen Feedrate: ");
+      Serial.print("M300 Sxxx Fxxx or Gx Zxxx Fxxx- Pen Feedrate: ");
       Serial.println(penFeedrate);
+      Serial.print("M310 - Preset XY Feedrate : ");
+      Serial.println(presetXyFeedrate);
+      Serial.print("M311 - Preset Pen Feedrate: ");
+      Serial.println(presetPenFeedrate);
       Serial.print("Values Saved in EEPROM ("); 
       Serial.print(EEPROM_MAGIC_NUMBER);
       Serial.print("): ");

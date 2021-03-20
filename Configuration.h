@@ -76,8 +76,11 @@
 // Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
 #define DEFAULT_ZOOM_FACTOR 1.0
 
-// The default XY feedrate in steps/second.
+// The default XY feedrate in steps/second. Necessary should G-Code not contain feedrate.
 #define DEFAULT_XY_FEEDRATE 400.0
+
+// The default preset XY feedrate in steps/second. Use preset feedrate if not zero.
+#define DEFAULT_PRESET_XY_FEEDRATE 0.0
 
 
 // Pen Arm Configuration. You will want to fine tune these settings by manually sending M300 codes.
@@ -90,8 +93,11 @@
 #define DEFAULT_PEN_UP_POSITION 145
 #define DEFAULT_PEN_DOWN_POSITION 115
 
-// How long to take for pen down moves in degrees/second.
+// The default Pen feedrate in degrees/second.  Necessary should G-Code not contain feedrate.
 #define DEFAULT_PEN_FEEDRATE 200.0
+
+// The default preset Pen feedrate in degrees/second. Use perset feedrate if not zero.
+#define DEFAULT_PRESET_PEN_FEEDRATE 0.0
 
 // Default settings of M and Z code modes to allow for increased 
 // flexablity controlling the pen servo. 
