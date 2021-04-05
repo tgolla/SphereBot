@@ -1,3 +1,21 @@
+# SphereBot, an EggBot clone.
+## tgolla/SphereBot Fork ReadMe
+### https://github.com/tgolla/SphereBot
+Arduino Firmware for use with the Adafruit Motor Shield v2 and 2.8" TFT Touch Shield for Arduino w/Capacitive Touch.
+
+This fork takes on a large number of changes including adding additional custom G-Code commands, a touchscreen control, SD card reader support and audio alerts. Many of these features are being actively developed such that additional documentation can be found in the G-Code.md file and comments in both the SphereBot.ino and configuration.h files.
+
+Please do not fork this code just to have a copy unless you plan on making meaningful contributions which could be merged back in as GitHub forks are overused, abused, and misused.  Forks are not meant to be used to keep a copy of the code in your personal repository.  More information on the proper use of forks can be found at…
+
+https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-forks
+https://docs.github.com/en/github/getting-started-with-github/fork-a-repo
+
+Instead clone the project and create a personal branch in which you can store your modification to configuration.h.  In this way you can pull updates to master and merge them into your branch without losing your specific configuration.
+
+I ask this because this project currently has 52 forks of which maybe 5 are not exact copies of the orginal project.
+
+# jinschoi/SphereBot Fork README
+### https://github.com/jinschoi/SphereBot
 This is a fork of Eberhard Rensch's SphereBot firmware. This version has been modified to work with the Adafruit motor shield by Jin Choi <jsc@alum.mit.edu>. Some changes have been made:
 
 * The units are changed from nominal mm to microsteps. If you are using a 200 steps/revolution stepper, G1 Y3200 will rotate the rotation axis one full turn (using 16x microstepping). This makes adjusting for object diameter unnecessary.
@@ -28,8 +46,9 @@ I suggest using the [InkScape Unicorn Plugin](https://github.com/martymcguire/in
 
 A simple g-code sender script is available in Utils. It traps "M01" to allow pauses between layers.
 
-
 # Original README
+## zaggo/SphereBot  
+### https://github.com/zaggo/SphereBot
 
 This is the firmware for an EggBot-style SphereBot.
 The firmware directly interprets GCode sent over the serial port.

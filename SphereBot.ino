@@ -79,6 +79,9 @@ by Terence Golla (tgolla).
   - Corrected pen up/down (feedrate was reversed) and changed feedrate to 
     degrees/second.
 
+Future feature enhancements are planned to add a touchscreen control, SD card reader 
+support and audio alerts.
+
 This sketch needs the following non-standard library which can be installed with the
 Arduino Library Manager.
 
