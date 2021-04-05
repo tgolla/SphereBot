@@ -13,10 +13,33 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ *
+ * Updated 3/2021 by Terence Golla
  */
 
 #ifndef Configuration_h
 #define Configuration_h
+
+// Add debugging (M999) command.
+#define DEBUG false
+
+// Set to true if you are using an Adafruit 2.8" TFT Touch Shield for 
+// Arduino w/Capacitive Touch with an Arduino Mega 2560 Note: A Mega
+// 2560 is required due to the memory requirements.  
+#define ADAFRUIT_TFT_TOUCH_SHIELD false
+
+// Adafruit 2.8" TFT Touch Shield for Arduino w/Capacitive Touch
+// The display uses hardware SPI, plus #9 & #10.
+#define TFT_CS 10
+#define TFT_DC 9
+#define FT6206_THRESSHOLD 0x80
+
+// Splash screen display delay in milliseconds.
+#define SPLASH_SCREEN_DELAY 7000
+
+// SD Chip Select Pin
+#define SD_CS 4
+
 
 // Version of Adafruit motor shield used.  One of the two lines should be commented out.
 
@@ -38,11 +61,12 @@
  * as 6, not 9.
  */
 
-#define PEN_AXIS_PORT         1
-#define ROTATION_AXIS_PORT    2
+#define PEN_AXIS_PORT 1
+#define ROTATION_AXIS_PORT 2
 
-#define SERVO_PIN             6
-#define REVERSE_SERVO         true
+#define SERVO_PIN 6
+#define REVERSE_SERVO true
+
 
 // Steppers Configuration
 
@@ -50,24 +74,83 @@
 #define STEPS_PER_REVOLUTION  200
 
 // Suitable for Eggbot template and 200 steps/rev steppers at 16x microstepping. */
-#define DEFAULT_ZOOM_FACTOR   1.0
+#define DEFAULT_ZOOM_FACTOR 1.0
 
-// Pen Arm Configuration.  You will want to fine tune these settings by manually sending M300 codes.
+// The default XY feedrate in steps/second. Necessary should G-Code not contain feedrate.
+#define DEFAULT_XY_FEEDRATE 400.0
+
+// The default preset XY feedrate in steps/second. Use preset feedrate if not zero.
+#define DEFAULT_PRESET_XY_FEEDRATE 0.0
+
+
+// Pen Arm Configuration. You will want to fine tune these settings by manually sending M300 codes.
 
 // Pen servo gets clamped to these values.
-#define MIN_PEN_POSITION      100
-#define MAX_PEN_POSITION      160
+#define MIN_PEN_POSITION 100
+#define MAX_PEN_POSITION 160
 
-// Default pen up position.
-#define PEN_UP_POSITION       145
+// Default pen up/down positions.
+#define DEFAULT_PEN_UP_POSITION 145
+#define DEFAULT_PEN_DOWN_POSITION 115
 
-// How long to take for pen down moves in ms.
-#define PEN_DOWN_MOVE_TIME    200
+// The default Pen feedrate in degrees/second.  Necessary should G-Code not contain feedrate.
+#define DEFAULT_PEN_FEEDRATE 200.0
+
+// The default preset Pen feedrate in degrees/second. Use perset feedrate if not zero.
+#define DEFAULT_PRESET_PEN_FEEDRATE 0.0
+
+// The default preset pen up feedrate in degrees/second. Each increase by one will 
+// logarithmically double the pen up speed. i.e. A multiplier of 2 will cause the pen
+// to go up at twice the speed it went down. 
+#define DEFAULT_PEN_UP_FEEDRATE_MULTIPLIER 3
+
+
+// Default settings of M and Z code modes to allow for increased 
+// flexablity controlling the pen servo. 
+
+// MZ Mode
+// 0 - M mode allows for normal pen control using M300 commands.
+// 1 - Z mode allows for pen control using G0, G1, G2 & G3 Z code parameter.
+// 2 - Auto mode scans the file on the SD to automatically set the active MZ mode 
+//     to either M or Z mode. When using the serial USB port the active mode 
+//     defaults to M mode.
+#define DEFAULT_MZ_MODE 0
+
+// The M Adjusted mode allows for the M300 S code parameter to be adjusted.  This 
+// allows the for the use of G-Code files that have been calibrated to use on other SphereBots.
+// 0 - Off does not adjust the S code value.
+// 1 - Preset defines the S value at which all S values at or above are adjusted to the pen up
+//     setting. All values below the preset value are adjusted to the pen down seting.
+// 2 - Calculated determines the S value at which all S values at or above are adjusted to the
+//     pen up setting by taking the first M300 command S values. All values below the calculated
+//     value are adjusted to the pen down seting.
+#define DEFAULT_M_ADJUST 0
+
+// The Z Adjusted mode allows for the G0, G1, G2 & G3 Z code parameter to be adjusted.  
+// This allows for the use of G-Code files that have been calibrated to use on other SphereBots.
+// 0 - Off does not adjust the Z code value.
+// 1 - Preset defines the Z value at which all Z values at or above are adjusted to the pen up
+//     setting. All values below the preset value are adjusted to the pen down seting.
+// 2 - Calculated determines the Z value at which all Z values at or above are adjusted to the
+//     pen up setting by taking the first G0, G1, G2 or G3 (usually G0) command's Z values. All
+//     values below the calculated  value are adjusted to the pen down seting. 
+#define DEFAULT_Z_ADJUST 0
+
+// If in serial USB mode the G-Code cannot be preprocessed (scanned) for maximun and minimun 
+// values to set the absolute or average adjustment threshold. In this case the following 
+// default is used for M300 commands. The value can also be set with the M308 command.
+#define DEFAULT_M_ADJUST_PRESET 145
+
+// If in serial USB mode the G-Code cannot be preprocessed (scanned) for maximun and minimun 
+// values to set the absolute or average adjustment threshold. In this case the following 
+// default is used for G0, G1, G2, & G3 Z parameters. The value can also be set with the M309 command.
+#define DEFAULT_Z_ADJUST_PRESET 5
+
 
 // X axis gets clamped to these values to prevent inadvertent damage.
 // Most drawings are 800 (-400 and 400) by 3200.
-#define MIN_PEN_AXIS_STEP    -480
-#define MAX_PEN_AXIS_STEP     480
+#define MIN_PEN_AXIS_STEP -480
+#define MAX_PEN_AXIS_STEP 480
 
 // Version dependent configurations.
 #if ADAFRUIT_MOTOR_SHIELD_VERSION == 1
@@ -75,9 +158,9 @@
   #include <AFMotor.h>
 
   #define ADAFRUIT_CLASS      AF_Stepper
-  #define ONE_STEP_TIME       168
+  #define ONE_STEP_TIME 168
   // steps/s. A no-delay loop takes 0.17 ms per step, so this is the fastest we can go.
-  #define MAX_FEEDRATE        2900.0
+  #define MAX_XY_FEEDRATE 2900.0
 
 #else
 
@@ -85,9 +168,9 @@
   //#include <utility/Adafruit_MS_PWMServoDriver.h>
   
   #define ADAFRUIT_CLASS      Adafruit_StepperMotor
-  #define ONE_STEP_TIME       1290
+  #define ONE_STEP_TIME 1290
   // steps/s. A no-delay loop takes 1.29 ms per step, so this is the fastest we can go.
-  #define MAX_FEEDRATE        775.0
+  #define MAX_XY_FEEDRATE 775.0
 
 #endif
 
