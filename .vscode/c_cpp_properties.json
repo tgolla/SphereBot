@@ -45,6 +45,8 @@
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\standard",
                 "C:\\Users\\tgoll\\Documents\\Arduino\\libraries\\Adafruit_Motor_Shield_V2_Library",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\Wire\\src",
+                "C:\\Users\\tgoll\\Documents\\Arduino\\libraries\\GCodeParser\\src",
+                "C:\\Users\\tgoll\\Documents\\Arduino\\libraries\\EEPROMTyped\\src",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\EEPROM\\src",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\SPI\\src",
                 "C:\\Program Files (x86)\\Arduino\\libraries\\Servo\\src",

@@ -1,107 +1,116 @@
 /*
- * Copyright 2011 by Eberhard Rensch <http://pleasantsoftware.com/developer/3d>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
- *
- * Part of this code is based on/inspired by the Helium Frog Delta Robot Firmware
- * by Martin Price <http://www.HeliumFrog.com>
- *
- * 2015-2016 the code was modified to run on an Adafruit Motor Shield V2 
- * by Jin Choi <jsc@alum.mit.edu>.
- * 
- * 2016 code support for the Adafruit Motor Shield V1 was added by GrAndAG.
- * 
- * 3/2021 the code was modified with the following improvements 
- * by Terence Golla (tgolla).
- *  
- *   - Corrected the naming convention mix of snake_case and camelCase for more
- *     prominent C/C++ Arduino software use of camelCase.
- * 
- *   - Restructured the ino software file to follow Arduino styling...
- *       - Begin with a set of comments clearly describing the purpose and 
- *         assumptions of the code.
- *       - Import any required library headers.
- *       - Define constants.
- *       - Define global variables.
- *       - Define setup() and loop().
- *       - Define subroutines (functions).
- * 
- *   - Expanded in code documentation (comments).
- *
- *   - Modified code to operate servo installed in reverse.
- * 
- *   - A true to G-Code specification parser was added. The class was developed using
- *     Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
- *     and the Microsoft Unit Testing Framework for C++ 
- *     (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
- * 
- *   - Added the following new M-Codes to allow for increased flexablity
- *     controlling the pen servo. 
- *  
- *       M304 - Sets the pen down position needed for new MZ mode.
- *       M305 - Sets the G-Code responsible for operating the pen servo.  
- *              P0 - M300 sets the pen height. P1 - G0, G1, G2 & G3 Z parameter
- *              is responsible for setting the pen height. P2 - Automatically
- *              detects which code is responsible for setting the pen height. 
- *       M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
- *       M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
- *       M308 - Sets the M300 pen up preset value. S values less than the value 
- *              move the pen down.
- *       M309 - Sets the Z pen up preset value. Z values less than the value 
- *              move the pen down.
- *       M310 - Sets the XY feedrate preset value. If zero feedrate is initalized with 
- *              default value and set through G0, G1, G2 & G3 codes with X or Y values
- *              by Fxxx. 
- *       M311 - Sets the pen feedrate preset value. If zero feedrate is initalized with 
- *              default value and set through the M300 Fxxx or G0, G1, G2 & G3 codes
- *              with only Z values by Fxxx.
- *       M312 - Sets the pen up feedrate multiplier. One means the pen will go up at the 
- *              same speed (degrees/second) as it goes down. Each increase by one will 
- *              logarithmically double the pen up speed.
- * 
- *   - Added the ability to set the pen feedrate with the M300 Fxxx or G0, G1, G2 & G3 
- *     codes with only Z values by Fxxx.
- * 
- *   - Corrected pen up/down (feedrate was reversed) and changed feedrate to 
- *     degrees/second.
- * 
- * This sketch needs the non-standard library 
- * (install it in the Arduino library directory):
- *
- * Adafruit Motor Shield (select appropriate version ):
- *   v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
- *   v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
- *
- * Adafruit ILI9341 Arduino Library
- *   https://github.com/adafruit/Adafruit_ILI9341
- * 
- * Adafruit GFX Library
- *   https://github.com/adafruit/Adafruit-GFX-Library
- * 
- * Adafruit ImageReader Arduino Library
- *   https://github.com/adafruit/Adafruit_ImageReader
- * 
- * Adafruit_FT6206 Library
- *   https://github.com/adafruit/Adafruit_FT6206_Library
- * 
- * Be sure to review and make appropriate modification to global constants 
- * in the "Configuration.h" file. 
- */
+Copyright 2011 by Eberhard Rensch <http://pleasantsoftware.com/developer/3d>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+
+Part of this code is based on/inspired by the Helium Frog Delta Robot Firmware
+by Martin Price <http://www.HeliumFrog.com>
+
+2015-2016 the code was modified to run on an Adafruit Motor Shield V2 
+by Jin Choi <jsc@alum.mit.edu>.
+
+2016 code support for the Adafruit Motor Shield V1 was added by GrAndAG.
+
+3/2021 the code was modified with the following improvements 
+by Terence Golla (tgolla).
+  
+  - Corrected the naming convention mix of snake_case and camelCase for more
+    prominent C/C++ Arduino software use of camelCase.
+ 
+  - Restructured the ino software file to follow Arduino styling...
+      - Begin with a set of comments clearly describing the purpose and 
+        assumptions of the code.
+      - Import any required library headers.
+      - Define constants.
+      - Define global variables.
+      - Define setup() and loop().
+      - Define subroutines (functions).
+ 
+  - Expanded in code documentation (comments).
+
+  - Modified code to operate servo installed in reverse.
+ 
+  - A true to G-Code specification parser was added. The class was developed using
+    Visual Studio Community (https://visualstudio.microsoft.com/vs/community/)
+    and the Microsoft Unit Testing Framework for C++ 
+    (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
+
+  - Added the following new M-Codes to allow for increased flexablity
+    controlling the pen servo. 
+ 
+      M304 - Sets the pen down position needed for new MZ mode.
+      M305 - Sets the G-Code responsible for operating the pen servo.  
+             P0 - M300 sets the pen height. P1 - G0, G1, G2 & G3 Z parameter
+             is responsible for setting the pen height. P2 - Automatically
+             detects which code is responsible for setting the pen height. 
+      M306 - Sets the M300 height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+      M307 - Sets the Z height adjustment. P0 - Off, P1 - Preset, P2 - Calculated
+      M308 - Sets the M300 pen up preset value. S values less than the value 
+             move the pen down.
+      M309 - Sets the Z pen up preset value. Z values less than the value 
+             move the pen down.
+      M310 - Sets the XY feedrate preset value. If zero feedrate is initalized with 
+             default value and set through G0, G1, G2 & G3 codes with X or Y values
+             by Fxxx. 
+      M311 - Sets the pen feedrate preset value. If zero feedrate is initalized with 
+             default value and set through the M300 Fxxx or G0, G1, G2 & G3 codes
+             with only Z values by Fxxx.
+      M312 - Sets the pen up feedrate multiplier. One means the pen will go up at the 
+             same speed (degrees/second) as it goes down. Each increase by one will 
+             logarithmically double the pen up speed.
+      M999 - Debugging command. To add define DEBUG true in configuration.h. Note:
+             In an Arduino Uno configuration do not add unless necessary as the code
+             consumes a large portion of dynamic memory.
+
+  - Added the ability to set the pen feedrate with the M300 Fxxx or G0, G1, G2 & G3 
+    codes with only Z values by Fxxx.
+
+  - Corrected pen up/down (feedrate was reversed) and changed feedrate to 
+    degrees/second.
+
+This sketch needs the following non-standard library which can be installed with the
+Arduino Library Manager.
+
+G-Code Parser Library
+  https://github.com/tgolla/GCodeParser
+
+EEPROM Typed Library
+  https://github.com/tgolla/EEPROMTyped  
+
+Adafruit Motor Shield (select appropriate version ):
+  v1: https://github.com/adafruit/Adafruit-Motor-Shield-library
+  v2: https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library
+
+Adafruit ILI9341 Arduino Library
+  https://github.com/adafruit/Adafruit_ILI9341
+ 
+Adafruit GFX Library
+  https://github.com/adafruit/Adafruit-GFX-Library
+ 
+Adafruit ImageReader Arduino Library
+  https://github.com/adafruit/Adafruit_ImageReader
+ 
+Adafruit_FT6206 Library
+  https://github.com/adafruit/Adafruit_FT6206_Library
+ 
+Be sure to review and make appropriate modification to global constants 
+in the "Configuration.h" file. 
+*/
 
 #include "Configuration.h"
-#include "GCodeParser.h"
-#include "EEPROMTyped.h"
+#include <GCodeParser.h>
+#include <EEPROMTyped.h>
 
 #include <SPI.h>
 #include <Wire.h>
