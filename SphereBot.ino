@@ -817,48 +817,103 @@ void processCommand()
 #if DEBUG == true
     case 999: // M999 - Debugging command.
       Serial.println();
-      Serial.print("M301 Pxxx - Minimun Pen Position: ");
+      Serial.print("M301 P");
+      Serial.print(minPenPosition);
+      Serial.print("  ;M301 Pxxx - Minimun Pen Position: ");
       Serial.println(minPenPosition);
-      Serial.print("M302 Pxxx - Maximun Pen Position: ");
+
+      Serial.print("M302 P");
+      Serial.print(maxPenPosition);
+      Serial.print(" ;M302 Pxxx - Maximun Pen Position: ");
       Serial.println(maxPenPosition);
-      Serial.print("M303 Pxxx - Pen Up Position: ");
+      
+      Serial.print("M303 P");
+      Serial.print(penUpPosition);
+      Serial.print(" ;M303 Pxxx - Pen Up Position: ");
       Serial.println(penUpPosition);
-      Serial.print("M304 Pxxx - Pen Down Position: ");
+      
+      Serial.print("M304 P");
+      Serial.print(penDownPosition);
+      Serial.print(" ;M304 Pxxx - Pen Down Position: ");
       Serial.println(penDownPosition);
-      Serial.print("M305 Px - MZ Mode (0-M, 1-Z, 2-Auto): ");
+      
+      Serial.print("M305 P");
+      Serial.print(mzMode);
+      Serial.print(" ;M305 Px - MZ Mode (0-M, 1-Z, 2-Auto): ");
       Serial.print(mzMode);
       Serial.print("  MZ Active Mode: ");
       Serial.println(mzActiveMode);
-      Serial.print("M306 Px - M Adjust (0-Off, 1-Preset, 2-Calculated): ");
+      
+      Serial.print("M306 P");
+      Serial.print(mAdjust);
+      Serial.print(" ;M306 Px - M Adjust (0-Off, 1-Preset, 2-Calculated): ");
       Serial.println(mAdjust);
-      Serial.print("M307 Px - Z Adjust: (0-Off, 1-Preset, 2-Calculated): ");
+
+      Serial.print("M307 P");
+      Serial.print(zAdjust);
+      Serial.print(" ;M307 Px - Z Adjust: (0-Off, 1-Preset, 2-Calculated): ");
       Serial.println(zAdjust);
-      Serial.print("M308 Pxxx - M Adjust Preset: ");
-      Serial.println(mAdjustPreset);
-      Serial.print("M309 Pxxx - Z Adjust Preset: ");
-      Serial.println(zAdjustPreset);
-      Serial.print("M Adjust Calculated: ");
+
+      Serial.print("M308 P");
+      Serial.print(mAdjustPreset);
+      Serial.print(" ;M308 Pxxx - M Adjust Preset: ");
+      Serial.print(mAdjustPreset);
+      Serial.print("  M Adjust Calculated: ");
       Serial.println(mAdjustCalculated);
-      Serial.print("Z Adjust Calculated: ");
+
+      Serial.print("M309 P");
+      Serial.print(zAdjustPreset);
+      Serial.print(" ;M309 Pxxx - Z Adjust Preset: ");
+      Serial.print(zAdjustPreset);
+      Serial.print("  Z Adjust Calculated: ");
       Serial.println(zAdjustCalculated);
-      Serial.print("Gx Xxxx Yxxx Fxxx - XY Feedrate: ");
+
+      Serial.print("G1 X0 Y0 F");
+      Serial.print(xyFeedrate);
+      Serial.print(" ;Gx Xxxx Yxxx Fxxx - XY Feedrate: ");
       Serial.println(xyFeedrate);
-      Serial.print("M300 Sxxx Fxxx or Gx Zxxx Fxxx - Pen Feedrate: ");
+
+      if (mzActiveMode == 0)
+      {
+        Serial.print("M300 S");
+        Serial.print(penUpPosition);
+        Serial.print(" F");
+      }
+      else
+      {
+        Serial.print("G1 Z");
+        Serial.print(penUpPosition);
+        Serial.print(" F");
+      }
+
+      Serial.print(penFeedrate);
+      Serial.print(" ;M300 Sxxx Fxxx or Gx Zxxx Fxxx - Pen Feedrate: ");
       Serial.println(penFeedrate);
-      Serial.print("M310 - Preset XY Feedrate : ");
+
+      Serial.print("M310 P");
+      Serial.print(presetXyFeedrate);
+      Serial.print(" ;M310 Pxxx - Preset XY Feedrate : ");
       Serial.println(presetXyFeedrate);
-      Serial.print("M311 - Preset Pen Feedrate: ");
+
+      Serial.print("M311 P");
+      Serial.print(presetPenFeedrate);
+      Serial.print(" ;M311 Pxxx - Preset Pen Feedrate: ");
       Serial.println(presetPenFeedrate);
-      Serial.print("M312 - Pen Up Feedrate Multiplier: ");
+
+      Serial.print("M312 P");
+      Serial.print(penUpFeedrateMultiplier);
+      Serial.print(" ;M312 Pxxx - Pen Up Feedrate Multiplier: ");
       Serial.println(penUpFeedrateMultiplier);
-      Serial.print("Values Saved in EEPROM ("); 
+
+      Serial.print("M500 ;Save pen configuration to EEPROM.  Values Saved in EEPROM ("); 
       Serial.print(EEPROM_MAGIC_NUMBER);
       Serial.print("): ");
       Serial.println(EEPROM.read(valueSavedEEPROMMemoryLocation));
-      Serial.println("M18 - Disable stepper motors.");
-      Serial.println("M500 - Save pen configuration to EEPROM.");
-      Serial.println("M501 - Load pen configuration from EEPROM (or defaults if cleared).");
-      Serial.println("M502 - Clear pen configuration from EEPROM.");
+      
+      Serial.println("M501 ;Load pen configuration from EEPROM (or defaults if cleared).");
+      Serial.println("M502 ;Clear pen configuration from EEPROM.");
+      Serial.println("M18 ;Disable stepper motors.");
+      
       Serial.println();
       break;
 #endif
