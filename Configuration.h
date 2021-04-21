@@ -21,7 +21,7 @@
 #define Configuration_h
 
 // Add debugging (M999) command.
-#define DEBUG false
+#define DEBUG true
 
 // Set to true if you are using an Adafruit 2.8" TFT Touch Shield for 
 // Arduino w/Capacitive Touch with an Arduino Mega 2560 Note: A Mega
