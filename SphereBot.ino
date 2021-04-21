@@ -46,7 +46,7 @@ by Terence Golla (tgolla).
     and the Microsoft Unit Testing Framework for C++ 
     (https://docs.microsoft.com/en-us/visualstudio/test/writing-unit-tests-for-c-cpp?view=vs-2019).
 
-  - Added the following new M-Codes to allow for increased flexablity
+  - Added the following new M-Codes to allow for increased flexibility
     controlling the pen servo. 
  
       M304 - Sets the pen down position needed for new MZ mode.
